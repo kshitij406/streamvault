@@ -91,6 +91,31 @@ export async function getSimilarTV(id: number): Promise<TVShow[]> {
   return data.results;
 }
 
+export async function getPopularMovies(): Promise<Movie[]> {
+  const data = await fetchTMDB<{ results: Movie[] }>('/movie/popular');
+  return data.results;
+}
+
+export async function getNowPlayingMovies(): Promise<Movie[]> {
+  const data = await fetchTMDB<{ results: Movie[] }>('/movie/now_playing');
+  return data.results;
+}
+
+export async function getUpcomingMovies(): Promise<Movie[]> {
+  const data = await fetchTMDB<{ results: Movie[] }>('/movie/upcoming');
+  return data.results;
+}
+
+export async function getTopRatedTV(): Promise<TVShow[]> {
+  const data = await fetchTMDB<{ results: TVShow[] }>('/tv/top_rated');
+  return data.results;
+}
+
+export async function getOnTheAirTV(): Promise<TVShow[]> {
+  const data = await fetchTMDB<{ results: TVShow[] }>('/tv/on_the_air');
+  return data.results;
+}
+
 export function getImageUrl(path: string | null, size = 'w500'): string {
   if (!path) return '';
   return `${IMAGE_BASE}${size}${path}`;
