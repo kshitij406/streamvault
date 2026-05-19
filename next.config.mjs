@@ -9,6 +9,19 @@ const nextConfig = {
       },
     ],
   },
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: "frame-src 'self' https://www.vidking.net; object-src 'none';",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

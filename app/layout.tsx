@@ -5,6 +5,7 @@ import Navbar from '@/components/Navbar';
 import BottomNav from '@/components/BottomNav';
 import SessionProvider from '@/components/SessionProvider';
 import TVModeDetector from '@/components/TVModeDetector';
+import AdBlockBanner from '@/components/AdBlockBanner';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -30,6 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Navbar />
           <main className="pb-14 md:pb-0">{children}</main>
           <BottomNav />
+          <AdBlockBanner />
         </SessionProvider>
       </body>
     </html>
