@@ -4,18 +4,21 @@ import { sql } from '@/lib/db';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  await sql`
-    CREATE TABLE IF NOT EXISTS users (
+  const results: Record<string, string> = {};
+
+  try {
+    await sql`CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       email TEXT UNIQUE NOT NULL,
       name TEXT NOT NULL,
       password TEXT NOT NULL,
       created_at TIMESTAMPTZ DEFAULT NOW()
-    )
-  `;
+    )`;
+    results.users = 'ok';
+  } catch (e) { results.users = String(e); }
 
-  await sql`
-    CREATE TABLE IF NOT EXISTS watch_history (
+  try {
+    await sql`CREATE TABLE IF NOT EXISTS watch_history (
       id SERIAL PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       media_id INTEGER NOT NULL,
@@ -30,11 +33,12 @@ export async function GET() {
       duration REAL DEFAULT 0,
       progress REAL DEFAULT 0,
       last_watched TIMESTAMPTZ DEFAULT NOW()
-    )
-  `;
+    )`;
+    results.watch_history = 'ok';
+  } catch (e) { results.watch_history = String(e); }
 
-  await sql`
-    CREATE TABLE IF NOT EXISTS watchlist (
+  try {
+    await sql`CREATE TABLE IF NOT EXISTS watchlist (
       id SERIAL PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       media_id INTEGER NOT NULL,
@@ -46,11 +50,12 @@ export async function GET() {
       genre_ids INTEGER[] DEFAULT '{}',
       added_at TIMESTAMPTZ DEFAULT NOW(),
       UNIQUE(user_id, media_id, media_type)
-    )
-  `;
+    )`;
+    results.watchlist = 'ok';
+  } catch (e) { results.watchlist = String(e); }
 
-  await sql`
-    CREATE TABLE IF NOT EXISTS user_ratings (
+  try {
+    await sql`CREATE TABLE IF NOT EXISTS user_ratings (
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       media_id INTEGER NOT NULL,
       media_type TEXT NOT NULL,
@@ -58,8 +63,10 @@ export async function GET() {
       watched BOOLEAN DEFAULT FALSE,
       updated_at TIMESTAMPTZ DEFAULT NOW(),
       PRIMARY KEY(user_id, media_id, media_type)
-    )
-  `;
+    )`;
+    results.user_ratings = 'ok';
+  } catch (e) { results.user_ratings = String(e); }
 
-  return NextResponse.json({ ok: true, message: 'Tables created' });
+  const allOk = Object.values(results).every(v => v === 'ok');
+  return NextResponse.json({ ok: allOk, results });
 }

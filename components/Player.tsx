@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { SERVERS, buildServerUrl, type ServerId } from '@/lib/servers';
 import type { SubCue } from '@/lib/opensubtitles';
+
+const SERVER_IDS = SERVERS.map(s => s.id) as ServerId[];
 
 interface Props {
   mediaType: 'movie' | 'tv';
@@ -17,13 +19,26 @@ interface Props {
 
 export default function Player({ mediaType, id, season, episode, title, posterPath, year, genreIds }: Props) {
   const lastSaved = useRef(0);
+  const lastEventAt = useRef(0);
+  const noSignalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const cuesRef = useRef<SubCue[]>([]);
   const [selectedServer, setSelectedServer] = useState<ServerId>('vidking');
   const [activeCue, setActiveCue] = useState<SubCue | null>(null);
   const [subtitleOffset, setSubtitleOffset] = useState(0);
+  const [noSignal, setNoSignal] = useState(false);
 
   const src = buildServerUrl(selectedServer, mediaType, id, season, episode);
+
+  // Try next server automatically if no player events after 20s
+  const tryNextServer = useCallback(() => {
+    setSelectedServer(current => {
+      const idx = SERVER_IDS.indexOf(current);
+      const next = SERVER_IDS[(idx + 1) % SERVER_IDS.length];
+      return next;
+    });
+    setNoSignal(false);
+  }, []);
 
   useEffect(() => {
     const original = window.open;
@@ -49,7 +64,25 @@ export default function Player({ mediaType, id, season, episode, title, posterPa
     return () => observer.disconnect();
   }, []);
 
-  // Fetch subtitles — only meaningful on Vidking since other servers send no postMessage events
+  // Reset no-signal state and start 20s timer when server changes
+  useEffect(() => {
+    setNoSignal(false);
+    lastEventAt.current = 0;
+    if (noSignalTimer.current) clearTimeout(noSignalTimer.current);
+
+    // Only watch for signal on Vidking (only server that sends postMessage)
+    if (selectedServer === 'vidking') {
+      noSignalTimer.current = setTimeout(() => {
+        if (lastEventAt.current === 0) setNoSignal(true);
+      }, 20000);
+    }
+
+    return () => {
+      if (noSignalTimer.current) clearTimeout(noSignalTimer.current);
+    };
+  }, [selectedServer, src]);
+
+  // Fetch subtitles
   useEffect(() => {
     cuesRef.current = [];
     setActiveCue(null);
@@ -73,10 +106,12 @@ export default function Player({ mediaType, id, season, episode, title, posterPa
       if (!['timeupdate', 'pause', 'ended'].includes(evtName)) return;
       if (!rawTime || !duration) return;
 
-      // Apply subtitle offset for sync
+      // Signal received — clear no-signal state
+      lastEventAt.current = Date.now();
+      setNoSignal(false);
+
       const currentTime = rawTime + subtitleOffset;
 
-      // Sync subtitle cue on every timeupdate
       if (evtName === 'timeupdate') {
         const cue = cuesRef.current.find(c => c.start <= currentTime && currentTime <= c.end) ?? null;
         setActiveCue(prev => (prev?.start === cue?.start ? prev : cue));
@@ -84,7 +119,6 @@ export default function Player({ mediaType, id, season, episode, title, posterPa
         setActiveCue(null);
       }
 
-      // Throttled history save
       const now = Date.now();
       if (evtName === 'timeupdate' && now - lastSaved.current < 5000) return;
       lastSaved.current = now;
@@ -130,6 +164,17 @@ export default function Player({ mediaType, id, season, episode, title, posterPa
             <span className="bg-black/80 text-white text-sm sm:text-base px-3 py-1 rounded text-center max-w-[85%] leading-relaxed whitespace-pre-line">
               {activeCue.text}
             </span>
+          </div>
+        )}
+        {noSignal && (
+          <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-3 z-20">
+            <p className="text-white text-sm font-medium">Stream not responding on {SERVERS.find(s => s.id === selectedServer)?.label}</p>
+            <button
+              onClick={tryNextServer}
+              className="bg-accent hover:bg-accent/80 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors"
+            >
+              Try next server
+            </button>
           </div>
         )}
       </div>
