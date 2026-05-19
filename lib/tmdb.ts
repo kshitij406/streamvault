@@ -155,7 +155,7 @@ export function getPlayerUrl(
   season?: number,
   episode?: number
 ): string {
-  const params = '?color=e50914&autoPlay=true&nextEpisode=true&episodeSelector=true&sub=en';
+  const params = '?color=e50914&autoPlay=true&nextEpisode=true&episodeSelector=true';
   if (type === 'movie') return `${VIDKING_BASE}/movie/${id}${params}`;
   return `${VIDKING_BASE}/tv/${id}/${season}/${episode}${params}`;
 }
