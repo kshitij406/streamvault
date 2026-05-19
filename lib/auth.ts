@@ -43,5 +43,7 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  // Fallback keeps the site functional when NEXTAUTH_SECRET isn't set on Vercel.
+  // Set NEXTAUTH_SECRET in Vercel env vars to make login/signup work properly.
+  secret: process.env.NEXTAUTH_SECRET ?? 'streamvault-fallback-secret-set-NEXTAUTH_SECRET-on-vercel',
 };
