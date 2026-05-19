@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import {
-  Search, Bookmark, Menu, X, Play, Film, Tv, LogOut, ChevronDown, BookOpen,
+  Search, Bookmark, Menu, X, Play, Film, Tv, LogOut, ChevronDown, BookOpen, Tv2, LayoutGrid,
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -70,6 +70,14 @@ export default function Navbar() {
               <Link href="/diary" className={`${linkCls('/diary')} flex items-center gap-1.5`}>
                 <BookOpen className="w-3.5 h-3.5" />
                 Diary
+              </Link>
+              <Link href="/anime" className={`${linkCls('/anime')} flex items-center gap-1.5`}>
+                <Tv2 className="w-3.5 h-3.5" />
+                Anime
+              </Link>
+              <Link href="/genres" className={`${linkCls('/genres')} flex items-center gap-1.5`}>
+                <LayoutGrid className="w-3.5 h-3.5" />
+                Genres
               </Link>
             </div>
           </div>
@@ -144,6 +152,8 @@ export default function Navbar() {
             { href: '/search', label: 'Search' },
             { href: '/watchlist', label: 'Watchlist' },
             { href: '/diary', label: 'Diary' },
+            { href: '/anime', label: 'Anime' },
+            { href: '/genres', label: 'Genres' },
           ].map(({ href, label }) => (
             <Link
               key={href}

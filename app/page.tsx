@@ -5,20 +5,25 @@ import {
   getTopRatedMovies,
   getPopularTV,
   getDiscoverMovies,
+  getMovieRecommendations,
+  getTVRecommendations,
 } from '@/lib/tmdb';
+import { Movie, TVShow } from '@/types';
 import HeroSection from '@/components/HeroSection';
 import MediaRow from '@/components/MediaRow';
 import ContinueWatching from '@/components/ContinueWatching';
 
 export default async function HomePage() {
-  // Read watch history cookie for personalized genre recommendations
   const historyCookie = cookies().get('sv_h')?.value;
   let topGenres: number[] = [];
+  let lastWatched: { id: number; mediaType: 'movie' | 'tv'; title: string } | null = null;
+
   if (historyCookie) {
     try {
       const history = JSON.parse(decodeURIComponent(historyCookie)) as Array<{
-        g?: number[];
+        i?: number; m?: 'movie' | 'tv'; t?: string; g?: number[];
       }>;
+
       const freq: Record<number, number> = {};
       for (const item of history) {
         for (const g of item.g ?? []) freq[g] = (freq[g] ?? 0) + 1;
@@ -27,17 +32,28 @@ export default async function HomePage() {
         .sort((a, b) => Number(b[1]) - Number(a[1]))
         .slice(0, 3)
         .map(([id]) => Number(id));
+
+      if (history.length > 0 && history[0].i && history[0].m) {
+        lastWatched = { id: history[0].i, mediaType: history[0].m, title: history[0].t ?? '' };
+      }
     } catch {
       // Malformed cookie — ignore
     }
   }
 
-  const [trendingMovies, trendingTV, topRated, popularTV, recommended] = await Promise.all([
+  const becausePromise: Promise<(Movie | TVShow)[]> = lastWatched
+    ? lastWatched.mediaType === 'movie'
+      ? getMovieRecommendations(lastWatched.id).catch(() => [])
+      : getTVRecommendations(lastWatched.id).catch(() => [])
+    : Promise.resolve([]);
+
+  const [trendingMovies, trendingTV, topRated, popularTV, recommended, becauseItems] = await Promise.all([
     getTrendingMovies(),
     getTrendingTV(),
     getTopRatedMovies(),
     getPopularTV(),
     topGenres.length ? getDiscoverMovies(topGenres) : Promise.resolve([] as Awaited<ReturnType<typeof getTrendingMovies>>),
+    becausePromise,
   ]);
 
   const heroMovie =
@@ -48,15 +64,18 @@ export default async function HomePage() {
       {heroMovie && <HeroSection movie={heroMovie} />}
 
       <div className="pt-6 pb-12">
-        {/* Continue Watching — client component reads sv_h cookie */}
         <ContinueWatching />
 
-        {recommended.length > 0 && (
+        {becauseItems.length > 0 && lastWatched && (
           <MediaRow
-            title="Recommended For You"
-            items={recommended}
-            mediaType="movie"
+            title={`Because you watched ${lastWatched.title}`}
+            items={becauseItems}
+            mediaType={lastWatched.mediaType}
           />
+        )}
+
+        {recommended.length > 0 && (
+          <MediaRow title="Recommended For You" items={recommended} mediaType="movie" />
         )}
 
         <MediaRow title="Trending Movies" items={trendingMovies} mediaType="movie" />

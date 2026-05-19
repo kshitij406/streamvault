@@ -16,7 +16,7 @@ const nextConfig = {
         headers: [
           {
             key: 'Content-Security-Policy',
-            value: "frame-src 'self' https://www.vidking.net; object-src 'none';",
+            value: "frame-src 'self' https://www.vidking.net https://vidsrc.to https://embed.su; object-src 'none';",
           },
         ],
       },

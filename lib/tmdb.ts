@@ -159,3 +159,63 @@ export function getPlayerUrl(
   if (type === 'movie') return `${VIDKING_BASE}/movie/${id}${params}`;
   return `${VIDKING_BASE}/tv/${id}/${season}/${episode}${params}`;
 }
+
+export async function getMovieRecommendations(id: number): Promise<Movie[]> {
+  const data = await fetchTMDB<{ results: Movie[] }>(`/movie/${id}/recommendations`);
+  return data.results;
+}
+
+export async function getTVRecommendations(id: number): Promise<TVShow[]> {
+  const data = await fetchTMDB<{ results: TVShow[] }>(`/tv/${id}/recommendations`);
+  return data.results;
+}
+
+export async function getPopularAnime(): Promise<TVShow[]> {
+  const data = await fetchTMDB<{ results: TVShow[] }>('/discover/tv', {
+    with_genres: '16',
+    with_original_language: 'ja',
+    sort_by: 'popularity.desc',
+    'vote_count.gte': '100',
+  });
+  return data.results;
+}
+
+export async function getTopRatedAnime(): Promise<TVShow[]> {
+  const data = await fetchTMDB<{ results: TVShow[] }>('/discover/tv', {
+    with_genres: '16',
+    with_original_language: 'ja',
+    sort_by: 'vote_average.desc',
+    'vote_count.gte': '300',
+  });
+  return data.results;
+}
+
+export async function getNewAnime(): Promise<TVShow[]> {
+  const today = new Date().toISOString().slice(0, 10);
+  const data = await fetchTMDB<{ results: TVShow[] }>('/discover/tv', {
+    with_genres: '16',
+    with_original_language: 'ja',
+    sort_by: 'first_air_date.desc',
+    'vote_count.gte': '20',
+    'first_air_date.lte': today,
+  });
+  return data.results;
+}
+
+export async function getGenreMovies(genreId: number): Promise<Movie[]> {
+  const data = await fetchTMDB<{ results: Movie[] }>('/discover/movie', {
+    with_genres: String(genreId),
+    sort_by: 'popularity.desc',
+    'vote_count.gte': '100',
+  });
+  return data.results;
+}
+
+export async function getGenreTV(genreId: number): Promise<TVShow[]> {
+  const data = await fetchTMDB<{ results: TVShow[] }>('/discover/tv', {
+    with_genres: String(genreId),
+    sort_by: 'popularity.desc',
+    'vote_count.gte': '100',
+  });
+  return data.results;
+}
