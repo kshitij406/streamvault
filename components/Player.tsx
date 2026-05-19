@@ -97,7 +97,6 @@ export default function Player({ mediaType, id, season, episode, title, posterPa
         allowFullScreen
         referrerPolicy="origin"
         title={mediaType === 'movie' ? 'Movie Player' : `Episode S${season}E${episode}`}
-        sandbox="allow-scripts allow-same-origin allow-fullscreen allow-presentation"
       />
     </div>
   );
