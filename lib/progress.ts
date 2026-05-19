@@ -1,20 +1,24 @@
 import { ProgressData } from '@/types';
+import { getCookieJson, setCookieJson } from './cookies';
 
-export function progressKey(mediaType: 'movie' | 'tv', id: number): string {
-  return `progress_${mediaType}_${id}`;
+const COOKIE = 'sv_p';
+const MAX = 15;
+
+interface ProgressEntry extends ProgressData {
+  key: string;
 }
 
-export function getProgress(
-  mediaType: 'movie' | 'tv',
-  id: number
-): ProgressData | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = localStorage.getItem(progressKey(mediaType, id));
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
+export function progressKey(mediaType: 'movie' | 'tv', id: number): string {
+  return `${mediaType[0]}_${id}`;
+}
+
+export function getProgress(mediaType: 'movie' | 'tv', id: number): ProgressData | null {
+  const entries = getCookieJson<ProgressEntry[]>(COOKIE, []);
+  const entry = entries.find((e) => e.key === progressKey(mediaType, id));
+  if (!entry) return null;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { key: _k, ...data } = entry;
+  return data;
 }
 
 export function saveProgress(
@@ -22,11 +26,11 @@ export function saveProgress(
   id: number,
   data: Omit<ProgressData, 'updatedAt'>
 ): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(
-    progressKey(mediaType, id),
-    JSON.stringify({ ...data, updatedAt: Date.now() })
-  );
+  const k = progressKey(mediaType, id);
+  const entries = getCookieJson<ProgressEntry[]>(COOKIE, []).filter((e) => e.key !== k);
+  entries.unshift({ key: k, ...data, updatedAt: Date.now() });
+  if (entries.length > MAX) entries.splice(MAX);
+  setCookieJson(COOKIE, entries);
 }
 
 export function formatTime(seconds: number): string {

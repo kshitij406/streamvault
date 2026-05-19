@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { saveProgress } from '@/lib/progress';
+import { addToHistory } from '@/lib/history';
 import { getPlayerUrl } from '@/lib/tmdb';
 
 interface Props {
@@ -9,9 +10,13 @@ interface Props {
   id: number;
   season?: number;
   episode?: number;
+  title?: string;
+  posterPath?: string | null;
+  year?: string;
+  genreIds?: number[];
 }
 
-export default function Player({ mediaType, id, season, episode }: Props) {
+export default function Player({ mediaType, id, season, episode, title, posterPath, year, genreIds }: Props) {
   const src = getPlayerUrl(mediaType, id, season, episode);
   const lastSaved = useRef(0);
 
@@ -27,18 +32,36 @@ export default function Player({ mediaType, id, season, episode }: Props) {
       if (evtName === 'timeupdate' && now - lastSaved.current < 5000) return;
       lastSaved.current = now;
 
+      const prog = progress ?? (currentTime / duration) * 100;
+
       saveProgress(mediaType, id, {
         currentTime,
         duration,
-        progress: progress ?? (currentTime / duration) * 100,
+        progress: prog,
         ...(season !== undefined ? { season } : {}),
         ...(episode !== undefined ? { episode } : {}),
       });
+
+      if (title) {
+        addToHistory({
+          id,
+          mediaType,
+          title,
+          posterPath: posterPath ?? null,
+          year: year ?? '',
+          progress: prog,
+          currentTime,
+          duration,
+          genreIds,
+          ...(season !== undefined ? { season } : {}),
+          ...(episode !== undefined ? { episode } : {}),
+        });
+      }
     };
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [mediaType, id, season, episode]);
+  }, [mediaType, id, season, episode, title, posterPath, year, genreIds]);
 
   return (
     <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden shadow-2xl">

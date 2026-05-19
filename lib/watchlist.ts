@@ -1,15 +1,11 @@
 import { WatchlistItem } from '@/types';
+import { getCookieJson, setCookieJson } from './cookies';
 
-const KEY = 'watchlist';
+const COOKIE = 'sv_wl';
+const MAX = 20;
 
 export function getWatchlist(): WatchlistItem[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+  return getCookieJson<WatchlistItem[]>(COOKIE, []);
 }
 
 export function isInWatchlist(id: number, mediaType: 'movie' | 'tv'): boolean {
@@ -18,15 +14,14 @@ export function isInWatchlist(id: number, mediaType: 'movie' | 'tv'): boolean {
 
 export function toggleWatchlist(item: WatchlistItem): boolean {
   const list = getWatchlist();
-  const exists = list.findIndex(
-    (i) => i.id === item.id && i.mediaType === item.mediaType
-  );
-  if (exists >= 0) {
-    list.splice(exists, 1);
-    localStorage.setItem(KEY, JSON.stringify(list));
+  const idx = list.findIndex((i) => i.id === item.id && i.mediaType === item.mediaType);
+  if (idx >= 0) {
+    list.splice(idx, 1);
+    setCookieJson(COOKIE, list);
     return false;
   }
   list.unshift({ ...item, addedAt: Date.now() });
-  localStorage.setItem(KEY, JSON.stringify(list));
+  if (list.length > MAX) list.splice(MAX);
+  setCookieJson(COOKIE, list);
   return true;
 }

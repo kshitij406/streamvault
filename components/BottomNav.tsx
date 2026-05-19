@@ -2,13 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Film, Tv, Search, Bookmark } from 'lucide-react';
+import { Home, Film, Tv, BookOpen, Bookmark } from 'lucide-react';
 
 const links = [
   { href: '/', icon: Home, label: 'Home' },
   { href: '/movies', icon: Film, label: 'Movies' },
   { href: '/tv-shows', icon: Tv, label: 'TV' },
-  { href: '/search', icon: Search, label: 'Search' },
+  { href: '/diary', icon: BookOpen, label: 'Diary' },
   { href: '/watchlist', icon: Bookmark, label: 'Saved' },
 ];
 

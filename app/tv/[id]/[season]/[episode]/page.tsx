@@ -75,7 +75,16 @@ export default async function TVPlayerPage({ params }: Props) {
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
           <div>
-            <Player mediaType="tv" id={id} season={season} episode={episode} />
+            <Player
+                mediaType="tv"
+                id={id}
+                season={season}
+                episode={episode}
+                title={show.name}
+                posterPath={show.poster_path}
+                year={show.first_air_date?.slice(0, 4)}
+                genreIds={show.genre_ids ?? show.genres?.map((g: { id: number }) => g.id)}
+              />
 
             <div className="mt-4">
               {currentEp && (

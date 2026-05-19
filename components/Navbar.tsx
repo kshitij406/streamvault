@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import {
-  Search, Bookmark, Menu, X, Play, Film, Tv, LogOut, ChevronDown,
+  Search, Bookmark, Menu, X, Play, Film, Tv, LogOut, ChevronDown, BookOpen,
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -66,6 +66,10 @@ export default function Navbar() {
               <Link href="/tv-shows" className={`${linkCls('/tv-shows')} flex items-center gap-1.5`}>
                 <Tv className="w-3.5 h-3.5" />
                 TV Shows
+              </Link>
+              <Link href="/diary" className={`${linkCls('/diary')} flex items-center gap-1.5`}>
+                <BookOpen className="w-3.5 h-3.5" />
+                Diary
               </Link>
             </div>
           </div>
@@ -139,6 +143,7 @@ export default function Navbar() {
             { href: '/tv-shows', label: 'TV Shows' },
             { href: '/search', label: 'Search' },
             { href: '/watchlist', label: 'Watchlist' },
+            { href: '/diary', label: 'Diary' },
           ].map(({ href, label }) => (
             <Link
               key={href}

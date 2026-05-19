@@ -116,6 +116,34 @@ export async function getOnTheAirTV(): Promise<TVShow[]> {
   return data.results;
 }
 
+export async function getMovieExternalIds(id: number): Promise<{ imdb_id: string | null }> {
+  return fetchTMDB<{ imdb_id: string | null }>(`/movie/${id}/external_ids`);
+}
+
+export async function getTVExternalIds(id: number): Promise<{ imdb_id: string | null }> {
+  return fetchTMDB<{ imdb_id: string | null }>(`/tv/${id}/external_ids`);
+}
+
+export async function getDiscoverMovies(genreIds: number[]): Promise<Movie[]> {
+  if (!genreIds.length) return [];
+  const data = await fetchTMDB<{ results: Movie[] }>('/discover/movie', {
+    with_genres: genreIds.slice(0, 3).join(','),
+    sort_by: 'popularity.desc',
+    'vote_count.gte': '100',
+  });
+  return data.results;
+}
+
+export async function getDiscoverTV(genreIds: number[]): Promise<TVShow[]> {
+  if (!genreIds.length) return [];
+  const data = await fetchTMDB<{ results: TVShow[] }>('/discover/tv', {
+    with_genres: genreIds.slice(0, 3).join(','),
+    sort_by: 'popularity.desc',
+    'vote_count.gte': '100',
+  });
+  return data.results;
+}
+
 export function getImageUrl(path: string | null, size = 'w500'): string {
   if (!path) return '';
   return `${IMAGE_BASE}${size}${path}`;

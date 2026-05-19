@@ -7,13 +7,17 @@ import {
   getTVCredits,
   getTVSeason,
   getSimilarTV,
+  getTVExternalIds,
   getImageUrl,
 } from '@/lib/tmdb';
+import { getExternalRatings } from '@/lib/omdb';
 import CastRow from '@/components/CastRow';
 import MediaRow from '@/components/MediaRow';
 import WatchlistButton from '@/components/WatchlistButton';
 import ResumeButton from '@/components/ResumeButton';
 import EpisodeList from '@/components/EpisodeList';
+import StarRating from '@/components/StarRating';
+import WatchedButton from '@/components/WatchedButton';
 
 interface Props {
   params: { id: string };
@@ -32,13 +36,18 @@ export default async function TVPage({ params }: Props) {
   const id = Number(params.id);
   if (isNaN(id)) notFound();
 
-  const [show, credits, similar] = await Promise.all([
+  const [show, credits, similar, externalIds] = await Promise.all([
     getTVShow(id).catch(() => null),
     getTVCredits(id).catch(() => ({ cast: [], crew: [] })),
     getSimilarTV(id).catch(() => []),
+    getTVExternalIds(id).catch(() => ({ imdb_id: null })),
   ]);
 
   if (!show) notFound();
+
+  const externalRatings = externalIds.imdb_id
+    ? await getExternalRatings(externalIds.imdb_id)
+    : { imdb: null, rottenTomatoes: null };
 
   const validSeasons = (show.seasons ?? []).filter((s) => s.season_number > 0);
   const firstSeason = validSeasons[0];
@@ -61,6 +70,8 @@ export default async function TVPage({ params }: Props) {
   };
 
   const firstEp = initialSeason?.episodes?.[0];
+  const letterboxdUrl = `https://letterboxd.com/search/films/${encodeURIComponent(show.name)}/`;
+  const imdbUrl = externalIds.imdb_id ? `https://www.imdb.com/title/${externalIds.imdb_id}/` : null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -98,7 +109,7 @@ export default async function TVPage({ params }: Props) {
               <p className="text-sm text-gray-400 italic mb-3">{show.tagline}</p>
             )}
 
-            <div className="flex flex-wrap items-center gap-3 mb-4 text-sm text-gray-400">
+            <div className="flex flex-wrap items-center gap-3 mb-3 text-sm text-gray-400">
               {year && (
                 <span className="flex items-center gap-1.5">
                   <Calendar className="w-3.5 h-3.5" />
@@ -106,14 +117,48 @@ export default async function TVPage({ params }: Props) {
                 </span>
               )}
               {show.number_of_seasons && (
-                <span className="text-gray-400">
+                <span>
                   {show.number_of_seasons} Season{show.number_of_seasons > 1 ? 's' : ''}
                 </span>
               )}
-              <span className="flex items-center gap-1.5">
-                <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
-                <span className="text-white font-medium">{show.vote_average.toFixed(1)}</span>
-              </span>
+            </div>
+
+            {/* Rating badges */}
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              <div className="flex items-center gap-1.5 bg-[#01b4e4]/10 border border-[#01b4e4]/30 px-2.5 py-1 rounded-lg text-xs font-semibold text-[#01b4e4]">
+                <Star className="w-3 h-3 fill-current" />
+                <span>{show.vote_average.toFixed(1)}</span>
+                <span className="opacity-50 text-[10px]">TMDB</span>
+              </div>
+
+              {externalRatings.imdb && imdbUrl && (
+                <a
+                  href={imdbUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 bg-[#f5c518]/10 border border-[#f5c518]/30 px-2.5 py-1 rounded-lg text-xs font-semibold text-[#f5c518] hover:bg-[#f5c518]/20 transition-colors"
+                >
+                  <span className="opacity-70 text-[10px]">IMDB</span>
+                  <span>{externalRatings.imdb}</span>
+                </a>
+              )}
+
+              {externalRatings.rottenTomatoes && (
+                <div className="flex items-center gap-1.5 bg-red-500/10 border border-red-500/30 px-2.5 py-1 rounded-lg text-xs font-semibold text-red-400">
+                  <span className="opacity-70 text-[10px]">RT</span>
+                  <span>{externalRatings.rottenTomatoes}</span>
+                </div>
+              )}
+
+              <a
+                href={letterboxdUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 bg-[#40bcf4]/10 border border-[#40bcf4]/30 px-2.5 py-1 rounded-lg text-xs font-semibold text-[#40bcf4] hover:bg-[#40bcf4]/20 transition-colors"
+              >
+                <span className="opacity-70 text-[10px]">LB</span>
+                <span>Letterboxd ↗</span>
+              </a>
             </div>
 
             {show.genres && show.genres.length > 0 && (
@@ -147,6 +192,11 @@ export default async function TVPage({ params }: Props) {
               )}
               <ResumeButton mediaType="tv" id={id} />
               <WatchlistButton item={watchlistItem} size="md" />
+              <WatchedButton mediaType="tv" id={id} />
+            </div>
+
+            <div className="mt-4">
+              <StarRating mediaType="tv" id={id} />
             </div>
           </div>
         </div>
