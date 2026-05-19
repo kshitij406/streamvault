@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useCallback } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Movie, TVShow } from '@/types';
 import MediaCard from './MediaCard';
@@ -20,17 +20,37 @@ export default function MediaRow({ title, items, mediaType }: Props) {
     rowRef.current.scrollBy({ left: dir === 'right' ? amount : -amount, behavior: 'smooth' });
   };
 
+  // D-pad / keyboard navigation: left/right arrows move focus between cards
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    if (!rowRef.current) return;
+
+    const cards = Array.from(
+      rowRef.current.querySelectorAll<HTMLElement>('a[tabindex="0"]')
+    );
+    const idx = cards.indexOf(document.activeElement as HTMLElement);
+    if (idx === -1) return;
+
+    e.preventDefault();
+    const next = e.key === 'ArrowRight' ? cards[idx + 1] : cards[idx - 1];
+    if (next) {
+      next.focus();
+      next.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  }, []);
+
   if (!items.length) return null;
 
   return (
-    <section className="mb-10 group/row">
+    <section className="mb-10 group/row" onKeyDown={handleKeyDown}>
       <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 mb-3">
-        <h2 className="text-base sm:text-lg font-semibold text-white">{title}</h2>
+        <h2 className="row-title text-base sm:text-lg font-semibold text-white">{title}</h2>
       </div>
 
       <div className="relative">
         <button
           onClick={() => scroll('left')}
+          tabIndex={-1}
           className="absolute left-0 top-0 bottom-0 z-10 w-10 flex items-center justify-center bg-gradient-to-r from-background to-transparent opacity-0 group-hover/row:opacity-100 transition-opacity"
           aria-label="Scroll left"
         >
@@ -48,6 +68,7 @@ export default function MediaRow({ title, items, mediaType }: Props) {
 
         <button
           onClick={() => scroll('right')}
+          tabIndex={-1}
           className="absolute right-0 top-0 bottom-0 z-10 w-10 flex items-center justify-center bg-gradient-to-l from-background to-transparent opacity-0 group-hover/row:opacity-100 transition-opacity"
           aria-label="Scroll right"
         >

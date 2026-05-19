@@ -35,15 +35,20 @@ export default function MediaCard({ item, mediaType }: Props) {
   };
 
   return (
-    <Link href={href} className="group flex-shrink-0 w-36 sm:w-44 block">
-      <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-card">
+    <Link
+      href={href}
+      tabIndex={0}
+      className="tv-card group flex-shrink-0 w-36 sm:w-44 block rounded-lg focus:outline-none"
+    >
+      {/* tv-card-overlay-parent enables focus-within styles in TV mode */}
+      <div className="tv-card-overlay-parent relative aspect-[2/3] rounded-lg overflow-hidden bg-card">
         {poster ? (
           <Image
             src={poster}
             alt={title}
             fill
             sizes="(max-width: 640px) 144px, 176px"
-            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            className="object-cover transition-transform duration-300 group-hover:scale-105 group-focus:scale-105"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-card text-gray-600 text-xs text-center px-2">
@@ -51,13 +56,15 @@ export default function MediaCard({ item, mediaType }: Props) {
           </div>
         )}
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+        {/* Overlay — visible on hover OR focus */}
+        <div className="tv-card-overlay absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-200" />
 
-        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <div className="tv-card-overlay absolute top-2 right-2 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-200">
           <WatchlistButton item={watchlistItem} size="sm" />
         </div>
 
-        <div className="absolute bottom-0 left-0 right-0 p-2 translate-y-full group-hover:translate-y-0 transition-transform duration-200">
+        {/* Info strip — slides up on hover OR focus */}
+        <div className="tv-card-info absolute bottom-0 left-0 right-0 p-2 translate-y-full group-hover:translate-y-0 group-focus:translate-y-0 transition-transform duration-200">
           <p className="text-xs font-semibold text-white line-clamp-2 leading-tight">{title}</p>
           <div className="flex items-center justify-between mt-1">
             <span className="text-xs text-gray-400">{year}</span>

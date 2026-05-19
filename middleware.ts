@@ -1,13 +1,9 @@
-import { withAuth } from 'next-auth/middleware';
+import { NextResponse } from 'next/server';
 
-export default withAuth({
-  pages: {
-    signIn: '/login',
-  },
-});
+// Auth is optional — all routes are publicly accessible.
+// Login/signup are available but not required.
+export function middleware() {
+  return NextResponse.next();
+}
 
-export const config = {
-  matcher: [
-    '/((?!login|signup|api/auth|api/signup|_next/static|_next/image|favicon.ico|icon.svg).*)',
-  ],
-};
+export const config = { matcher: [] };

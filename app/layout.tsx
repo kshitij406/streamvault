@@ -4,6 +4,7 @@ import './globals.css';
 import Navbar from '@/components/Navbar';
 import BottomNav from '@/components/BottomNav';
 import SessionProvider from '@/components/SessionProvider';
+import TVModeDetector from '@/components/TVModeDetector';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -25,6 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className={`${inter.className} bg-background text-white min-h-screen`}>
         <SessionProvider>
+          <TVModeDetector />
           <Navbar />
           <main className="pb-14 md:pb-0">{children}</main>
           <BottomNav />

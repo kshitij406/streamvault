@@ -33,3 +33,61 @@ body {
 @media (max-width: 768px) {
   a, button { -webkit-tap-highlight-color: transparent; }
 }
+
+/* ── Keyboard / TV focus indicator ─────────────────────────── */
+:focus-visible {
+  outline: 3px solid #e50914;
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* ── TV / 10-foot UI ────────────────────────────────────────── */
+/* Added by TVModeDetector.tsx on Smart TV user agents / 1080p+ no-touch screens */
+.tv-mode {
+  font-size: 20px;
+}
+
+/* Bigger, always-visible focus ring on TV */
+.tv-mode :focus-visible {
+  outline: 4px solid #e50914;
+  outline-offset: 5px;
+  box-shadow: 0 0 0 8px rgba(229, 9, 20, 0.25);
+  border-radius: 8px;
+}
+
+/* Scale up cards */
+.tv-mode .tv-card {
+  width: 200px !important;
+}
+
+/* Show card overlay on focus, not just hover */
+.tv-mode .tv-card-overlay-parent:focus-within .tv-card-overlay,
+.tv-mode .tv-card-overlay-parent:focus-within .tv-card-info {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+}
+
+/* Larger row titles */
+.tv-mode .row-title {
+  font-size: 1.4rem;
+}
+
+/* Bigger navbar text */
+.tv-mode nav a,
+.tv-mode nav button {
+  font-size: 1rem;
+}
+
+/* Bigger hero buttons */
+.tv-mode .hero-btn {
+  padding: 0.875rem 2rem;
+  font-size: 1rem;
+}
+
+/* Remove animations / reduce motion for TV */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
