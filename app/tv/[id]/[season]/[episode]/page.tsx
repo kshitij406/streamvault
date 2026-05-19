@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
-import { getTVShow, getTVSeason, getImageUrl } from '@/lib/tmdb';
+import { getTVShow, getTVSeason } from '@/lib/tmdb';
 import Player from '@/components/Player';
 import EpisodeSidebar from '@/components/EpisodeSidebar';
 
@@ -50,7 +50,6 @@ export default async function TVPlayerPage({ params }: Props) {
   const nextEp = currentIndex < episodes.length - 1 ? episodes[currentIndex + 1] : null;
 
   const validSeasons = (show.seasons ?? []).filter((s) => s.season_number > 0);
-  const currentSeasonInfo = validSeasons.find((s) => s.season_number === season);
   const nextSeasonNum =
     !nextEp && validSeasons.find((s) => s.season_number === season + 1)
       ? season + 1

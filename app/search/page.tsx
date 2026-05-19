@@ -67,7 +67,7 @@ export default function SearchPage() {
         </div>
 
         {query && !loading && results.length === 0 && (
-          <p className="text-gray-500 text-center py-12">No results found for "{query}"</p>
+          <p className="text-gray-500 text-center py-12">No results found for &quot;{query}&quot;</p>
         )}
 
         {results.length > 0 && (
