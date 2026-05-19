@@ -10,7 +10,6 @@ import {
   getImageUrl,
 } from '@/lib/tmdb';
 import { getExternalRatings } from '@/lib/omdb';
-import { getQualityTag } from '@/lib/quality';
 import Player from '@/components/Player';
 import CastRow from '@/components/CastRow';
 import MediaRow from '@/components/MediaRow';
@@ -67,7 +66,6 @@ export default async function MoviePage({ params }: Props) {
     addedAt: 0,
   };
 
-  const quality = getQualityTag(movie.release_date);
   const letterboxdUrl = `https://letterboxd.com/search/films/${encodeURIComponent(movie.title)}/`;
   const imdbUrl = externalIds.imdb_id ? `https://www.imdb.com/title/${externalIds.imdb_id}/` : null;
 
@@ -129,16 +127,6 @@ export default async function MoviePage({ params }: Props) {
                 <span>{movie.vote_average.toFixed(1)}</span>
                 <span className="opacity-50 text-[10px]">TMDB</span>
               </div>
-
-              {quality && (
-                <div className={`flex items-center px-2.5 py-1 rounded-lg text-xs font-bold border ${
-                  quality === 'CAM'
-                    ? 'bg-orange-500/10 border-orange-500/30 text-orange-400'
-                    : 'bg-green-500/10 border-green-500/30 text-green-400'
-                }`}>
-                  {quality}
-                </div>
-              )}
 
               {externalRatings.imdb && imdbUrl && (
                 <a
