@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Eye, EyeOff } from 'lucide-react';
-import { isWatched, toggleWatched } from '@/lib/ratings';
+import { useSession } from 'next-auth/react';
 
 interface Props {
   mediaType: 'movie' | 'tv';
@@ -11,14 +12,26 @@ interface Props {
 
 export default function WatchedButton({ mediaType, id }: Props) {
   const [watched, setWatched] = useState(false);
+  const { data: session } = useSession();
+  const router = useRouter();
 
   useEffect(() => {
-    setWatched(isWatched(mediaType, id));
-  }, [mediaType, id]);
+    if (!session) return;
+    fetch(`/api/ratings?mediaId=${id}&mediaType=${mediaType}`)
+      .then(r => r.json())
+      .then(({ watched: w }) => { if (typeof w === 'boolean') setWatched(w); })
+      .catch(() => {});
+  }, [id, mediaType, session]);
 
-  const toggle = () => {
-    const result = toggleWatched(mediaType, id);
-    setWatched(result);
+  const toggle = async () => {
+    if (!session) { router.push('/login'); return; }
+    const next = !watched;
+    setWatched(next);
+    await fetch('/api/ratings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mediaId: id, mediaType, watched: next }),
+    }).catch(() => setWatched(!next));
   };
 
   return (

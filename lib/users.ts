@@ -1,5 +1,4 @@
-import fs from 'fs/promises';
-import path from 'path';
+import { sql } from './db';
 import { randomUUID } from 'crypto';
 
 interface StoredUser {
@@ -7,25 +6,14 @@ interface StoredUser {
   email: string;
   name: string;
   password: string;
-  createdAt: string;
 }
 
-const USERS_FILE = path.join(process.cwd(), 'data/users.json');
-
-export async function getUsers(): Promise<StoredUser[]> {
-  if (process.env.USERS_DATA) {
-    try {
-      return JSON.parse(process.env.USERS_DATA);
-    } catch {
-      return [];
-    }
-  }
-  try {
-    const data = await fs.readFile(USERS_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch {
-    return [];
-  }
+export async function getUserByEmail(email: string): Promise<StoredUser | null> {
+  const rows = await sql`
+    SELECT id, email, name, password FROM users
+    WHERE email = ${email.toLowerCase()} LIMIT 1
+  `;
+  return (rows[0] as StoredUser) ?? null;
 }
 
 export async function addUser(
@@ -33,28 +21,13 @@ export async function addUser(
   name: string,
   hashedPassword: string
 ): Promise<StoredUser | null> {
-  const users = await getUsers();
+  const existing = await getUserByEmail(email);
+  if (existing) return null;
 
-  if (users.find((u) => u.email.toLowerCase() === email.toLowerCase())) {
-    return null;
-  }
-
-  const newUser: StoredUser = {
-    id: randomUUID(),
-    email,
-    name,
-    password: hashedPassword,
-    createdAt: new Date().toISOString(),
-  };
-
-  users.push(newUser);
-
-  try {
-    await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
-  } catch {
-    // Vercel production: filesystem is read-only.
-    // User should set USERS_DATA env var or commit data/users.json.
-  }
-
-  return newUser;
+  const id = randomUUID();
+  await sql`
+    INSERT INTO users (id, email, name, password)
+    VALUES (${id}, ${email.toLowerCase()}, ${name}, ${hashedPassword})
+  `;
+  return { id, email: email.toLowerCase(), name, password: hashedPassword };
 }

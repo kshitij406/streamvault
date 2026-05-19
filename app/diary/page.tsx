@@ -4,22 +4,27 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Star, BookOpen, Eye, Clock } from 'lucide-react';
-import { getHistory, type HistoryEntry } from '@/lib/history';
-import { getRating, isWatched } from '@/lib/ratings';
 import { getImageUrl } from '@/lib/tmdb';
 
-interface DiaryEntry extends HistoryEntry {
+interface DiaryEntry {
+  id: number;
+  mediaType: 'movie' | 'tv';
+  title: string;
+  posterPath: string | null;
+  year: string;
+  progress: number;
+  lastWatched: number;
+  season?: number;
+  episode?: number;
   userRating: number | null;
   markedWatched: boolean;
 }
 
 function relativeDate(ts: number): string {
-  const now = Date.now();
-  const diff = now - ts;
+  const diff = Date.now() - ts;
   const mins = Math.floor(diff / 60000);
   const hours = Math.floor(diff / 3600000);
   const days = Math.floor(diff / 86400000);
-
   if (mins < 1) return 'Just now';
   if (mins < 60) return `${mins}m ago`;
   if (hours < 24) return `${hours}h ago`;
@@ -29,31 +34,30 @@ function relativeDate(ts: number): string {
 }
 
 function StarDisplay({ rating }: { rating: number }) {
-  const stars = [];
-  for (let s = 1; s <= 5; s++) {
-    const full = rating >= s;
-    const half = !full && rating >= s - 0.5;
-    stars.push(
-      <span key={s} className="relative inline-block w-4 h-4">
-        {full ? (
-          <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-        ) : half ? (
-          <>
-            <Star className="absolute inset-0 w-4 h-4 text-gray-600" />
-            <span
-              className="absolute inset-0 overflow-hidden"
-              style={{ clipPath: 'inset(0 50% 0 0)' }}
-            >
+  return (
+    <span className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map(s => {
+        const full = rating >= s;
+        const half = !full && rating >= s - 0.5;
+        return (
+          <span key={s} className="relative inline-block w-4 h-4">
+            {full ? (
               <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-            </span>
-          </>
-        ) : (
-          <Star className="w-4 h-4 text-gray-600" />
-        )}
-      </span>
-    );
-  }
-  return <span className="flex items-center gap-0.5">{stars}</span>;
+            ) : half ? (
+              <>
+                <Star className="absolute inset-0 w-4 h-4 text-gray-600" />
+                <span className="absolute inset-0 overflow-hidden" style={{ clipPath: 'inset(0 50% 0 0)' }}>
+                  <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                </span>
+              </>
+            ) : (
+              <Star className="w-4 h-4 text-gray-600" />
+            )}
+          </span>
+        );
+      })}
+    </span>
+  );
 }
 
 export default function DiaryPage() {
@@ -62,13 +66,32 @@ export default function DiaryPage() {
 
   useEffect(() => {
     setMounted(true);
-    const history = getHistory();
-    const enriched: DiaryEntry[] = history.map((h) => ({
-      ...h,
-      userRating: getRating(h.mediaType, h.id),
-      markedWatched: isWatched(h.mediaType, h.id),
-    }));
-    setEntries(enriched);
+    Promise.all([
+      fetch('/api/history').then(r => r.json()),
+      fetch('/api/ratings').then(r => r.json()),
+    ]).then(([{ history }, { ratings }]) => {
+      const ratingMap: Record<string, { rating: number | null; watched: boolean }> = {};
+      for (const r of ratings ?? []) {
+        ratingMap[`${r.media_type}_${r.media_id}`] = { rating: r.rating, watched: r.watched };
+      }
+      const enriched: DiaryEntry[] = (history ?? []).map((h: Record<string, unknown>) => {
+        const key = `${h.media_type}_${h.media_id}`;
+        return {
+          id: h.media_id as number,
+          mediaType: h.media_type as 'movie' | 'tv',
+          title: h.title as string,
+          posterPath: (h.poster_path as string) ?? null,
+          year: (h.year as string) ?? '',
+          progress: h.progress as number,
+          lastWatched: h.last_watched ? new Date(h.last_watched as string).getTime() : 0,
+          season: (h.season as number | null) ?? undefined,
+          episode: (h.episode as number | null) ?? undefined,
+          userRating: ratingMap[key]?.rating ?? null,
+          markedWatched: ratingMap[key]?.watched ?? false,
+        };
+      });
+      setEntries(enriched);
+    }).catch(() => {});
   }, []);
 
   if (!mounted) {
@@ -105,9 +128,7 @@ export default function DiaryPage() {
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <BookOpen className="w-12 h-12 text-gray-700 mb-4" />
             <p className="text-gray-400 text-lg font-medium mb-2">Your diary is empty</p>
-            <p className="text-gray-600 text-sm mb-6">
-              Start watching movies and shows to build your diary
-            </p>
+            <p className="text-gray-600 text-sm mb-6">Start watching movies and shows to build your diary</p>
             <Link
               href="/"
               className="bg-accent hover:bg-accent/80 text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors"
@@ -118,15 +139,9 @@ export default function DiaryPage() {
         ) : (
           <div className="space-y-3">
             {entries.map((entry) => {
-              const href =
-                entry.mediaType === 'movie'
-                  ? `/movie/${entry.id}`
-                  : `/tv/${entry.id}`;
+              const href = entry.mediaType === 'movie' ? `/movie/${entry.id}` : `/tv/${entry.id}`;
               const poster = getImageUrl(entry.posterPath, 'w154');
-              const badge =
-                entry.mediaType === 'movie'
-                  ? 'bg-blue-600/80'
-                  : 'bg-purple-600/80';
+              const badge = entry.mediaType === 'movie' ? 'bg-blue-600/80' : 'bg-purple-600/80';
 
               return (
                 <div
@@ -163,17 +178,13 @@ export default function DiaryPage() {
                             {entry.mediaType === 'movie' ? 'Film' : 'TV'}
                           </span>
                           {entry.mediaType === 'tv' && entry.season != null && entry.episode != null && (
-                            <span className="text-xs text-gray-500">
-                              S{entry.season}E{entry.episode}
-                            </span>
+                            <span className="text-xs text-gray-500">S{entry.season}E{entry.episode}</span>
                           )}
                         </div>
                       </div>
 
                       <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                        <span className="text-xs text-gray-500">
-                          {relativeDate(entry.lastWatched)}
-                        </span>
+                        <span className="text-xs text-gray-500">{relativeDate(entry.lastWatched)}</span>
                         {entry.markedWatched && (
                           <span className="flex items-center gap-1 text-xs text-green-400">
                             <Eye className="w-3 h-3" />
@@ -187,19 +198,13 @@ export default function DiaryPage() {
                       {entry.userRating != null ? (
                         <div className="flex items-center gap-1.5">
                           <StarDisplay rating={entry.userRating} />
-                          <span className="text-xs text-yellow-400 font-medium">
-                            {entry.userRating}/5
-                          </span>
+                          <span className="text-xs text-yellow-400 font-medium">{entry.userRating}/5</span>
                         </div>
                       ) : (
-                        <Link
-                          href={href}
-                          className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
-                        >
+                        <Link href={href} className="text-xs text-gray-600 hover:text-gray-400 transition-colors">
                           Rate this →
                         </Link>
                       )}
-
                       {entry.progress > 0 && entry.progress < 100 && (
                         <span className="flex items-center gap-1 text-xs text-gray-500">
                           <Clock className="w-3 h-3" />

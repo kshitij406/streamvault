@@ -4,15 +4,38 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Play } from 'lucide-react';
-import { getHistory, type HistoryEntry } from '@/lib/history';
 import { getImageUrl } from '@/lib/tmdb';
+
+interface HistoryEntry {
+  id: number;
+  mediaType: 'movie' | 'tv';
+  title: string;
+  posterPath: string | null;
+  progress: number;
+  season?: number;
+  episode?: number;
+}
+
+function mapRow(r: Record<string, unknown>): HistoryEntry {
+  return {
+    id: r.media_id as number,
+    mediaType: r.media_type as 'movie' | 'tv',
+    title: r.title as string,
+    posterPath: (r.poster_path as string) ?? null,
+    progress: r.progress as number,
+    season: (r.season as number | null) ?? undefined,
+    episode: (r.episode as number | null) ?? undefined,
+  };
+}
 
 export default function ContinueWatching() {
   const [items, setItems] = useState<HistoryEntry[]>([]);
 
   useEffect(() => {
-    const h = getHistory().filter((e) => e.progress >= 2 && e.progress <= 95);
-    setItems(h);
+    fetch('/api/history?in_progress=true')
+      .then(r => r.json())
+      .then(({ history }) => { if (history?.length) setItems(history.map(mapRow)); })
+      .catch(() => {});
   }, []);
 
   if (!items.length) return null;
@@ -58,12 +81,8 @@ export default function ContinueWatching() {
                   <Play className="w-10 h-10 fill-white text-white" />
                 </div>
 
-                {/* Progress bar */}
                 <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20">
-                  <div
-                    className="h-full bg-accent"
-                    style={{ width: `${item.progress}%` }}
-                  />
+                  <div className="h-full bg-accent" style={{ width: `${item.progress}%` }} />
                 </div>
 
                 {item.mediaType === 'tv' && item.season != null && item.episode != null && (
@@ -74,9 +93,7 @@ export default function ContinueWatching() {
               </div>
 
               <div className="mt-1.5 px-0.5">
-                <p className="text-xs font-medium text-gray-200 truncate leading-tight">
-                  {item.title}
-                </p>
+                <p className="text-xs font-medium text-gray-200 truncate leading-tight">{item.title}</p>
                 <p className="text-xs text-gray-500 mt-0.5">{Math.round(item.progress)}% watched</p>
               </div>
             </Link>

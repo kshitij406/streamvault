@@ -1,7 +1,7 @@
 import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
-import { getUsers } from '@/lib/users';
+import { getUserByEmail } from '@/lib/users';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -14,10 +14,7 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        const users = await getUsers();
-        const user = users.find(
-          (u) => u.email.toLowerCase() === credentials.email.toLowerCase()
-        );
+        const user = await getUserByEmail(credentials.email);
         if (!user) return null;
 
         const valid = await bcrypt.compare(credentials.password, user.password);

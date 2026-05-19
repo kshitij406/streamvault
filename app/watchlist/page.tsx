@@ -5,8 +5,19 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Star, Bookmark, X, BookmarkX } from 'lucide-react';
 import { WatchlistItem } from '@/types';
-import { getWatchlist, toggleWatchlist } from '@/lib/watchlist';
 import { getImageUrl } from '@/lib/tmdb';
+
+function mapRow(r: Record<string, unknown>): WatchlistItem {
+  return {
+    id: r.media_id as number,
+    mediaType: r.media_type as 'movie' | 'tv',
+    title: r.title as string,
+    posterPath: (r.poster_path as string) ?? null,
+    year: (r.year as string) ?? '',
+    rating: (r.rating as number) ?? 0,
+    addedAt: r.added_at ? new Date(r.added_at as string).getTime() : Date.now(),
+  };
+}
 
 export default function WatchlistPage() {
   const [items, setItems] = useState<WatchlistItem[]>([]);
@@ -14,12 +25,19 @@ export default function WatchlistPage() {
 
   useEffect(() => {
     setMounted(true);
-    setItems(getWatchlist());
+    fetch('/api/watchlist')
+      .then(r => r.json())
+      .then(({ items: rows }) => { if (rows) setItems(rows.map(mapRow)); })
+      .catch(() => {});
   }, []);
 
-  const handleRemove = (item: WatchlistItem) => {
-    toggleWatchlist(item);
-    setItems(getWatchlist());
+  const handleRemove = async (item: WatchlistItem) => {
+    setItems(prev => prev.filter(i => !(i.id === item.id && i.mediaType === item.mediaType)));
+    await fetch('/api/watchlist', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: item.id, mediaType: item.mediaType }),
+    }).catch(() => {});
   };
 
   if (!mounted) {
@@ -52,9 +70,7 @@ export default function WatchlistPage() {
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <BookmarkX className="w-12 h-12 text-gray-700 mb-4" />
             <p className="text-gray-400 text-lg font-medium mb-2">Your watchlist is empty</p>
-            <p className="text-gray-600 text-sm mb-6">
-              Save movies and shows to watch them later
-            </p>
+            <p className="text-gray-600 text-sm mb-6">Save movies and shows to watch them later</p>
             <Link
               href="/"
               className="bg-accent hover:bg-accent/80 text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors"
@@ -74,13 +90,7 @@ export default function WatchlistPage() {
   );
 }
 
-function WatchlistCard({
-  item,
-  onRemove,
-}: {
-  item: WatchlistItem;
-  onRemove: (item: WatchlistItem) => void;
-}) {
+function WatchlistCard({ item, onRemove }: { item: WatchlistItem; onRemove: (item: WatchlistItem) => void }) {
   const poster = getImageUrl(item.posterPath, 'w342');
   const href = `/${item.mediaType}/${item.id}`;
 
@@ -103,13 +113,9 @@ function WatchlistCard({
           )}
 
           <div className="absolute top-2 left-2">
-            <span
-              className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                item.mediaType === 'movie'
-                  ? 'bg-blue-600/80 text-white'
-                  : 'bg-purple-600/80 text-white'
-              }`}
-            >
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+              item.mediaType === 'movie' ? 'bg-blue-600/80 text-white' : 'bg-purple-600/80 text-white'
+            }`}>
               {item.mediaType === 'movie' ? 'Movie' : 'TV'}
             </span>
           </div>

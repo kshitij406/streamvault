@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { getUsers, addUser } from '@/lib/users';
+import { getUserByEmail, addUser } from '@/lib/users';
 
 export async function POST(req: NextRequest) {
   const { name, email, password } = await req.json();
@@ -16,8 +16,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const users = await getUsers();
-  if (users.find((u) => u.email.toLowerCase() === email.toLowerCase())) {
+  const existing = await getUserByEmail(email.trim());
+  if (existing) {
     return NextResponse.json({ error: 'Email already in use' }, { status: 409 });
   }
 

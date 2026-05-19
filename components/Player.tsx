@@ -1,8 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { saveProgress } from '@/lib/progress';
-import { addToHistory } from '@/lib/history';
 import { SERVERS, buildServerUrl, type ServerId } from '@/lib/servers';
 import type { SubCue } from '@/lib/opensubtitles';
 
@@ -23,6 +21,7 @@ export default function Player({ mediaType, id, season, episode, title, posterPa
   const cuesRef = useRef<SubCue[]>([]);
   const [selectedServer, setSelectedServer] = useState<ServerId>('vidking');
   const [activeCue, setActiveCue] = useState<SubCue | null>(null);
+  const [subtitleOffset, setSubtitleOffset] = useState(0);
 
   const src = buildServerUrl(selectedServer, mediaType, id, season, episode);
 
@@ -69,10 +68,13 @@ export default function Player({ mediaType, id, season, episode, title, posterPa
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
       if (!e.data || e.data.type !== 'PLAYER_EVENT') return;
-      const { event: evtName, currentTime, duration, progress } = e.data.data ?? {};
+      const { event: evtName, currentTime: rawTime, duration, progress } = e.data.data ?? {};
 
       if (!['timeupdate', 'pause', 'ended'].includes(evtName)) return;
-      if (!currentTime || !duration) return;
+      if (!rawTime || !duration) return;
+
+      // Apply subtitle offset for sync
+      const currentTime = rawTime + subtitleOffset;
 
       // Sync subtitle cue on every timeupdate
       if (evtName === 'timeupdate') {
@@ -82,33 +84,35 @@ export default function Player({ mediaType, id, season, episode, title, posterPa
         setActiveCue(null);
       }
 
-      // Throttled progress + history save
+      // Throttled history save
       const now = Date.now();
       if (evtName === 'timeupdate' && now - lastSaved.current < 5000) return;
       lastSaved.current = now;
 
-      const prog = progress ?? (currentTime / duration) * 100;
-      saveProgress(mediaType, id, {
-        currentTime, duration, progress: prog,
-        ...(season !== undefined ? { season } : {}),
-        ...(episode !== undefined ? { episode } : {}),
-      });
+      const prog = progress ?? (rawTime / duration) * 100;
 
       if (title) {
-        addToHistory({
-          id, mediaType, title,
-          posterPath: posterPath ?? null,
-          year: year ?? '',
-          progress: prog, currentTime, duration, genreIds,
-          ...(season !== undefined ? { season } : {}),
-          ...(episode !== undefined ? { episode } : {}),
-        });
+        fetch('/api/history', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mediaId: id, mediaType, title,
+            posterPath: posterPath ?? null,
+            year: year ?? '',
+            genreIds,
+            season: season ?? null,
+            episode: episode ?? null,
+            currentTime: rawTime,
+            duration,
+            progress: prog,
+          }),
+        }).catch(() => {});
       }
     };
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [mediaType, id, season, episode, title, posterPath, year, genreIds]);
+  }, [mediaType, id, season, episode, title, posterPath, year, genreIds, subtitleOffset]);
 
   return (
     <div>
@@ -145,6 +149,31 @@ export default function Player({ mediaType, id, season, episode, title, posterPa
             {s.label}
           </button>
         ))}
+
+        <span className="text-xs text-gray-500 ml-2">Sub offset:</span>
+        <button
+          onClick={() => setSubtitleOffset(o => Math.round((o - 0.5) * 10) / 10)}
+          className="text-xs px-2 py-1 rounded-lg border bg-white/5 text-gray-400 border-white/10 hover:text-white hover:bg-white/10"
+        >
+          −0.5s
+        </button>
+        <span className="text-xs text-gray-300 min-w-[3rem] text-center">
+          {subtitleOffset > 0 ? `+${subtitleOffset}s` : subtitleOffset === 0 ? '0s' : `${subtitleOffset}s`}
+        </span>
+        <button
+          onClick={() => setSubtitleOffset(o => Math.round((o + 0.5) * 10) / 10)}
+          className="text-xs px-2 py-1 rounded-lg border bg-white/5 text-gray-400 border-white/10 hover:text-white hover:bg-white/10"
+        >
+          +0.5s
+        </button>
+        {subtitleOffset !== 0 && (
+          <button
+            onClick={() => setSubtitleOffset(0)}
+            className="text-xs px-2 py-1 rounded-lg border bg-white/5 text-gray-500 border-white/10 hover:text-white hover:bg-white/10"
+          >
+            Reset
+          </button>
+        )}
       </div>
     </div>
   );
