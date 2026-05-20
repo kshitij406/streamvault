@@ -87,7 +87,7 @@ export default function MediaCard({ item, mediaType }: Props) {
           </div>
 
           {/* Trailer action */}
-          <div className="tv-card-overlay absolute left-2 right-2 bottom-2 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-200">
+          <div className="sv-card-actions tv-card-overlay absolute left-2 right-2 bottom-2 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-200">
             <button
               type="button"
               onClick={(e) => {
@@ -96,7 +96,7 @@ export default function MediaCard({ item, mediaType }: Props) {
                 setHovered(true);
                 setOpenTrailer(true);
               }}
-              className="w-full flex items-center justify-center gap-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-xs font-semibold px-3 py-2 backdrop-blur-md ring-1 ring-white/10"
+              className="w-full flex items-center justify-center gap-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-xs font-semibold px-3 py-2.5 backdrop-blur-md ring-1 ring-white/10"
               title="Watch trailer"
             >
               <Play className="w-3.5 h-3.5 fill-white" />

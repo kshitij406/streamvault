@@ -124,6 +124,11 @@ body {
   font-size: 1rem;
 }
 
+/* Keep cards as a single focus target on TV remotes */
+.tv-mode .sv-card-actions {
+  display: none !important;
+}
+
 /* Remove animations / reduce motion for TV */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

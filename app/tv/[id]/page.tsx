@@ -18,6 +18,7 @@ import ResumeButton from '@/components/ResumeButton';
 import EpisodeList from '@/components/EpisodeList';
 import StarRating from '@/components/StarRating';
 import WatchedButton from '@/components/WatchedButton';
+import TrailerButton from '@/components/TrailerButton';
 
 interface Props {
   params: { id: string };
@@ -190,6 +191,7 @@ export default async function TVPage({ params }: Props) {
                   Play S1E1
                 </Link>
               )}
+              <TrailerButton mediaType="tv" id={id} title={show.name} />
               <ResumeButton mediaType="tv" id={id} />
               <WatchlistButton item={watchlistItem} size="md" />
               <WatchedButton mediaType="tv" id={id} />
