@@ -5,9 +5,11 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Play } from 'lucide-react';
 import { getImageUrl } from '@/lib/tmdb';
+import { getLocalInProgress, type LocalEntry } from '@/lib/localHistory';
 
-interface HistoryEntry {
-  id: number;
+interface DisplayEntry {
+  key: string;
+  mediaId: number;
   mediaType: 'movie' | 'tv';
   title: string;
   posterPath: string | null;
@@ -16,25 +18,51 @@ interface HistoryEntry {
   episode?: number;
 }
 
-function mapRow(r: Record<string, unknown>): HistoryEntry {
+function fromLocal(h: LocalEntry): DisplayEntry {
   return {
-    id: r.media_id as number,
-    mediaType: r.media_type as 'movie' | 'tv',
-    title: r.title as string,
-    posterPath: (r.poster_path as string) ?? null,
-    progress: r.progress as number,
-    season: (r.season as number | null) ?? undefined,
-    episode: (r.episode as number | null) ?? undefined,
+    key: `${h.mediaType}-${h.mediaId}-${h.season}-${h.episode}`,
+    mediaId: h.mediaId,
+    mediaType: h.mediaType,
+    title: h.title,
+    posterPath: h.posterPath,
+    progress: h.progress,
+    season: h.season ?? undefined,
+    episode: h.episode ?? undefined,
   };
 }
 
 export default function ContinueWatching() {
-  const [items, setItems] = useState<HistoryEntry[]>([]);
+  const [items, setItems] = useState<DisplayEntry[]>([]);
 
   useEffect(() => {
+    // Read from localStorage immediately — works without login
+    const local = getLocalInProgress().map(fromLocal);
+    if (local.length) setItems(local);
+
+    // Also try API (logged-in users get cross-device history merged in)
     fetch('/api/history?in_progress=true')
-      .then(r => r.json())
-      .then(({ history }) => { if (history?.length) setItems(history.map(mapRow)); })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data?.history?.length) return;
+        // Build a map from local entries keyed by identity
+        const map = new Map<string, DisplayEntry>();
+        for (const h of local) map.set(h.key, h);
+        // Overlay API entries (may include other-device progress)
+        for (const r of data.history as Record<string, unknown>[]) {
+          const key = `${r.media_type}-${r.media_id}-${r.season ?? null}-${r.episode ?? null}`;
+          map.set(key, {
+            key,
+            mediaId: r.media_id as number,
+            mediaType: r.media_type as 'movie' | 'tv',
+            title: r.title as string,
+            posterPath: (r.poster_path as string) ?? null,
+            progress: r.progress as number,
+            season: (r.season as number | null) ?? undefined,
+            episode: (r.episode as number | null) ?? undefined,
+          });
+        }
+        setItems(Array.from(map.values()));
+      })
       .catch(() => {});
   }, []);
 
@@ -51,13 +79,13 @@ export default function ContinueWatching() {
         {items.map((item) => {
           const href =
             item.mediaType === 'movie'
-              ? `/movie/${item.id}`
-              : `/tv/${item.id}/${item.season ?? 1}/${item.episode ?? 1}`;
+              ? `/movie/${item.mediaId}`
+              : `/tv/${item.mediaId}/${item.season ?? 1}/${item.episode ?? 1}`;
           const poster = getImageUrl(item.posterPath, 'w342');
 
           return (
             <Link
-              key={`${item.mediaType}-${item.id}`}
+              key={item.key}
               href={href}
               tabIndex={0}
               className="tv-card group flex-shrink-0 w-36 sm:w-44 block rounded-lg focus:outline-none"
@@ -82,19 +110,28 @@ export default function ContinueWatching() {
                 </div>
 
                 <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20">
-                  <div className="h-full bg-accent" style={{ width: `${item.progress}%` }} />
+                  <div
+                    className="h-full bg-accent"
+                    style={{ width: `${item.progress}%` }}
+                  />
                 </div>
 
-                {item.mediaType === 'tv' && item.season != null && item.episode != null && (
-                  <div className="absolute top-2 left-2 text-xs bg-black/70 text-white px-1.5 py-0.5 rounded font-medium">
-                    S{item.season}E{item.episode}
-                  </div>
-                )}
+                {item.mediaType === 'tv' &&
+                  item.season != null &&
+                  item.episode != null && (
+                    <div className="absolute top-2 left-2 text-xs bg-black/70 text-white px-1.5 py-0.5 rounded font-medium">
+                      S{item.season}E{item.episode}
+                    </div>
+                  )}
               </div>
 
               <div className="mt-1.5 px-0.5">
-                <p className="text-xs font-medium text-gray-200 truncate leading-tight">{item.title}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{Math.round(item.progress)}% watched</p>
+                <p className="text-xs font-medium text-gray-200 truncate leading-tight">
+                  {item.title}
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {Math.round(item.progress)}% watched
+                </p>
               </div>
             </Link>
           );

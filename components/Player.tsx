@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { SERVERS, buildServerUrl, type ServerId } from '@/lib/servers';
 import type { SubCue } from '@/lib/opensubtitles';
+import { upsertLocalHistory } from '@/lib/localHistory';
 
 const SERVER_IDS = SERVERS.map((s) => s.id) as ServerId[];
 
@@ -113,6 +114,21 @@ export default function Player({
 
       const prog = progress ?? (rawTime / duration) * 100;
       if (title) {
+        // Always save locally so continue watching works without login
+        upsertLocalHistory({
+          mediaId: id,
+          mediaType,
+          title,
+          posterPath: posterPath ?? null,
+          progress: prog,
+          currentTime: rawTime,
+          duration,
+          season: season ?? null,
+          episode: episode ?? null,
+          genreIds: genreIds ?? [],
+        });
+
+        // Also sync to DB for logged-in users (cross-device)
         fetch('/api/history', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
