@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getLocalHistory } from '@/lib/localHistory';
+import { getHistory } from '@/lib/history';
 import MediaRow from './MediaRow';
 import type { Movie, TVShow } from '@/types';
 
@@ -11,10 +12,32 @@ export default function BecauseYouWatched() {
   const [mediaType, setMediaType] = useState<'movie' | 'tv'>('movie');
 
   useEffect(() => {
-    const history = getLocalHistory();
-    if (!history.length) return;
+    const local = getLocalHistory();
+    const cookie = (() => {
+      try {
+        return getHistory();
+      } catch {
+        return [];
+      }
+    })();
 
-    const latest = history[0];
+    const latestLocal = local[0];
+    const latestCookie = cookie[0];
+    const latest = latestLocal
+      ? {
+          mediaId: latestLocal.mediaId,
+          mediaType: latestLocal.mediaType,
+          title: latestLocal.title,
+        }
+      : latestCookie
+        ? {
+            mediaId: latestCookie.id,
+            mediaType: latestCookie.mediaType,
+            title: latestCookie.title,
+          }
+        : null;
+
+    if (!latest) return;
     const url =
       latest.mediaType === 'movie'
         ? `https://api.themoviedb.org/3/movie/${latest.mediaId}/recommendations?language=en-US&page=1`

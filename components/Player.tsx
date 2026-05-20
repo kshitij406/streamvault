@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { SERVERS, buildServerUrl, type ServerId } from '@/lib/servers';
 import type { SubCue } from '@/lib/opensubtitles';
 import { upsertLocalHistory } from '@/lib/localHistory';
+import { saveProgress } from '@/lib/progress';
+import { addToHistory } from '@/lib/history';
 
 interface Props {
   mediaType: 'movie' | 'tv';
@@ -34,35 +36,74 @@ export default function Player({
   const [selectedServer, setSelectedServer] = useState<ServerId>('vidking');
   const [activeCue, setActiveCue] = useState<SubCue | null>(null);
   const [subtitleOffset, setSubtitleOffset] = useState(0);
+  const [popupProtection, setPopupProtection] = useState(true);
 
   const src = buildServerUrl(selectedServer, mediaType, id, season, episode);
 
   // Reset postMessage flag when content changes
   useEffect(() => {
     gotPostMessage.current = false;
-  }, [id, mediaType, season, episode]);
+  }, [id, mediaType, season, episode, selectedServer]);
 
-  // Time-based fallback: if no postMessages arrive within 30s, still save to
-  // localStorage so the item appears in Continue Watching
+  // Time-based fallback for providers without postMessages (VidSrc/EmbedSu):
+  // persist an "in progress" entry quickly and keep it fresh.
   useEffect(() => {
     if (!title) return;
-    const timer = setTimeout(() => {
-      if (gotPostMessage.current) return; // postMessages working, skip
+    const startedAt = Date.now();
+    const fallbackProgress = 5;
+
+    const tick = () => {
+      if (gotPostMessage.current) return;
+      const elapsed = Math.max(0, Math.round((Date.now() - startedAt) / 1000));
+
       upsertLocalHistory({
         mediaId: id,
         mediaType,
         title,
         posterPath: posterPath ?? null,
-        progress: 5,
-        currentTime: 0,
+        progress: fallbackProgress,
+        currentTime: elapsed,
         duration: 0,
         season: season ?? null,
         episode: episode ?? null,
         genreIds: genreIds ?? [],
       });
-    }, 30_000);
-    return () => clearTimeout(timer);
-  }, [id, mediaType, season, episode, title, posterPath, genreIds]);
+
+      // Cookie-based fallback for browsers that restrict localStorage.
+      saveProgress(mediaType, id, {
+        currentTime: elapsed,
+        duration: 0,
+        progress: fallbackProgress,
+        season,
+        episode,
+      });
+      addToHistory({
+        id,
+        mediaType,
+        title,
+        posterPath: posterPath ?? null,
+        year: year ?? '',
+        progress: fallbackProgress,
+        currentTime: elapsed,
+        duration: 0,
+        genreIds: genreIds ?? [],
+        season,
+        episode,
+      });
+    };
+
+    // For Vidking (postMessages) we wait a bit; for providers that never send
+    // postMessages (VidSrc/EmbedSu), save quickly so Continue Watching populates.
+    const firstDelay = selectedServer === 'vidking' ? 25_000 : 8_000;
+    const first = window.setTimeout(tick, firstDelay);
+    // Keep refreshing while the page stays open.
+    const interval = window.setInterval(tick, 25_000);
+
+    return () => {
+      window.clearTimeout(first);
+      window.clearInterval(interval);
+    };
+  }, [id, mediaType, season, episode, title, posterPath, year, genreIds, selectedServer]);
 
   // Fetch subtitles (Vidking only)
   useEffect(() => {
@@ -115,7 +156,7 @@ export default function Player({
       }
 
       if (!evtName || !['timeupdate', 'pause', 'ended', 'playing'].includes(evtName)) return;
-      if (!rawTime || !dur) return;
+      if (rawTime == null || dur == null || dur <= 0) return;
 
       gotPostMessage.current = true;
 
@@ -133,7 +174,10 @@ export default function Player({
       if (evtName === 'timeupdate' && now - lastSaved.current < 5000) return;
       lastSaved.current = now;
 
-      const progress = prog ?? (rawTime / dur) * 100;
+      const progress = Math.max(
+        0,
+        Math.min(100, prog ?? (rawTime / dur) * 100)
+      );
 
       if (title) {
         upsertLocalHistory({
@@ -147,6 +191,29 @@ export default function Player({
           season: season ?? null,
           episode: episode ?? null,
           genreIds: genreIds ?? [],
+        });
+
+        // Persist minimal progress into cookies so resume/continue works on
+        // devices that block localStorage (common on some TV browsers).
+        saveProgress(mediaType, id, {
+          currentTime: rawTime,
+          duration: dur,
+          progress,
+          season,
+          episode,
+        });
+        addToHistory({
+          id,
+          mediaType,
+          title,
+          posterPath: posterPath ?? null,
+          year: year ?? '',
+          progress,
+          currentTime: rawTime,
+          duration: dur,
+          genreIds: genreIds ?? [],
+          season,
+          episode,
         });
 
         fetch('/api/history', {
@@ -179,7 +246,14 @@ export default function Player({
         <iframe
           src={src}
           className="absolute inset-0 w-full h-full"
-          allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+          // Sandbox blocks window.open / top navigation used by ad popups.
+          // Toggleable in case a provider requires popups to function.
+          sandbox={
+            popupProtection
+              ? 'allow-scripts allow-same-origin allow-forms allow-presentation'
+              : undefined
+          }
+          allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
           allowFullScreen
           referrerPolicy="origin"
           title={
@@ -212,6 +286,23 @@ export default function Player({
             {s.label}
           </button>
         ))}
+
+        <span className="text-xs text-gray-500 ml-2">Pop-ups:</span>
+        <button
+          onClick={() => setPopupProtection((v) => !v)}
+          className={`text-xs px-3 py-1 rounded-lg border transition-colors ${
+            popupProtection
+              ? 'bg-white/5 text-gray-300 border-white/10 hover:text-white hover:bg-white/10'
+              : 'bg-white/5 text-gray-500 border-white/10 hover:text-white hover:bg-white/10'
+          }`}
+          title={
+            popupProtection
+              ? 'Popup protection is ON (blocks new tabs)'
+              : 'Popup protection is OFF'
+          }
+        >
+          {popupProtection ? 'Blocked' : 'Allowed'}
+        </button>
 
         <span className="text-xs text-gray-500 ml-2">Sub offset:</span>
         <button

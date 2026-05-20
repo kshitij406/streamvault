@@ -78,3 +78,25 @@ export function getTopGenres(): number[] {
     .slice(0, 3)
     .map(([id]) => Number(id));
 }
+
+// Useful for server components: accepts the raw Cookie header value.
+export function getTopGenresFromCookieHeader(cookieHeader: string | null): number[] {
+  if (!cookieHeader) return [];
+  try {
+    const escaped = COOKIE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const match = cookieHeader.match(new RegExp('(?:^|;\\s*)' + escaped + '=([^;]*)'));
+    if (!match?.[1]) return [];
+    const raw = decodeURIComponent(match[1]);
+    const compact = JSON.parse(raw) as HistoryCompact[];
+    const freq: Record<number, number> = {};
+    for (const c of compact ?? []) {
+      for (const g of c.g ?? []) freq[g] = (freq[g] ?? 0) + 1;
+    }
+    return Object.entries(freq)
+      .sort((a, b) => Number(b[1]) - Number(a[1]))
+      .slice(0, 3)
+      .map(([id]) => Number(id));
+  } catch {
+    return [];
+  }
+}

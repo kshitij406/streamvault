@@ -1,4 +1,5 @@
 import { getServerSession } from 'next-auth';
+import { headers } from 'next/headers';
 import { authOptions } from '@/lib/auth';
 import { sql } from '@/lib/db';
 import {
@@ -8,6 +9,7 @@ import {
   getPopularTV,
   getDiscoverMovies,
 } from '@/lib/tmdb';
+import { getTopGenresFromCookieHeader } from '@/lib/history';
 import HeroSection from '@/components/HeroSection';
 import MediaRow from '@/components/MediaRow';
 import ContinueWatching from '@/components/ContinueWatching';
@@ -35,6 +37,10 @@ export default async function HomePage() {
       .sort((a, b) => Number(b[1]) - Number(a[1]))
       .slice(0, 3)
       .map(([id]) => Number(id));
+  } else {
+    // Guest fallback: derive from cookie watch history (localStorage isn't
+    // available to server components).
+    topGenres = getTopGenresFromCookieHeader((await headers()).get('cookie'));
   }
 
   const [trendingMovies, trendingTV, topRated, popularTV, recommended] =
