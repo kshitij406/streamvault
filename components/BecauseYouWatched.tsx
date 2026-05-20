@@ -6,13 +6,18 @@ import { getHistory } from '@/lib/history';
 import MediaRow from './MediaRow';
 import type { Movie, TVShow } from '@/types';
 
-export default function BecauseYouWatched() {
+export default function BecauseYouWatched({
+  mediaTypeFilter,
+}: {
+  mediaTypeFilter?: 'movie' | 'tv';
+}) {
   const [watchedTitle, setWatchedTitle] = useState('');
   const [items, setItems] = useState<(Movie | TVShow)[]>([]);
   const [mediaType, setMediaType] = useState<'movie' | 'tv'>('movie');
 
   useEffect(() => {
-    const local = getLocalHistory();
+    const localAll = getLocalHistory();
+    const local = mediaTypeFilter ? localAll.filter((h) => h.mediaType === mediaTypeFilter) : localAll;
     const cookie = (() => {
       try {
         return getHistory();
@@ -21,8 +26,12 @@ export default function BecauseYouWatched() {
       }
     })();
 
+    const cookieFiltered = mediaTypeFilter
+      ? cookie.filter((h) => h.mediaType === mediaTypeFilter)
+      : cookie;
+
     const latestLocal = local[0];
-    const latestCookie = cookie[0];
+    const latestCookie = cookieFiltered[0];
     const latest = latestLocal
       ? {
           mediaId: latestLocal.mediaId,
@@ -57,7 +66,7 @@ export default function BecauseYouWatched() {
         }
       })
       .catch(() => {});
-  }, []);
+  }, [mediaTypeFilter]);
 
   if (!items.length) return null;
 

@@ -25,7 +25,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${inter.className} bg-background text-white min-h-screen`}>
+      <body className={`${inter.className} sv-bg text-white min-h-screen`}>
         <SessionProvider>
           <TVModeDetector />
           <Navbar />

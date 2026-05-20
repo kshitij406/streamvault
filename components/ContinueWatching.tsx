@@ -15,6 +15,8 @@ interface DisplayEntry {
   title: string;
   posterPath: string | null;
   progress: number;
+  currentTime?: number;
+  duration?: number;
   season?: number;
   episode?: number;
   lastWatched?: number;
@@ -22,12 +24,14 @@ interface DisplayEntry {
 
 function fromLocal(h: LocalEntry): DisplayEntry {
   return {
-    key: `${h.mediaType}-${h.mediaId}-${h.season}-${h.episode}`,
+    key: `${h.mediaType}-${h.mediaId}-${h.season}-${h.episode}-${h.serverId ?? 'unknown'}`,
     mediaId: h.mediaId,
     mediaType: h.mediaType,
     title: h.title,
     posterPath: h.posterPath,
     progress: h.progress,
+    currentTime: h.currentTime,
+    duration: h.duration,
     season: h.season ?? undefined,
     episode: h.episode ?? undefined,
     lastWatched: h.lastWatched,
@@ -38,34 +42,97 @@ function clamp(n: number) {
   return Math.max(0, Math.min(100, n));
 }
 
+function baseKey(e: Pick<DisplayEntry, 'mediaType' | 'mediaId' | 'season' | 'episode'>) {
+  return `${e.mediaType}-${e.mediaId}-${e.season ?? null}-${e.episode ?? null}`;
+}
+
+function upsertBest(
+  map: Map<string, DisplayEntry>,
+  entry: DisplayEntry
+) {
+  const k = baseKey(entry);
+  const prev = map.get(k);
+  if (!prev) {
+    map.set(k, entry);
+    return;
+  }
+
+  // Prefer whichever server is further along. When duration is unknown (common
+  // for embeds without postMessages), fall back to currentTime.
+  const durPrev = prev.duration ?? 0;
+  const durNext = entry.duration ?? 0;
+  const ctPrev = prev.currentTime ?? 0;
+  const ctNext = entry.currentTime ?? 0;
+
+  const comparableByProgress = durPrev > 0 && durNext > 0;
+  if (comparableByProgress) {
+    const pPrev = clamp(prev.progress);
+    const pNext = clamp(entry.progress);
+    if (pNext > pPrev) {
+      map.set(k, entry);
+      return;
+    }
+    if (pNext < pPrev) return;
+  } else {
+    if (ctNext > ctPrev) {
+      map.set(k, entry);
+      return;
+    }
+    if (ctNext < ctPrev) return;
+  }
+
+  // tie-breaker: newest
+  if ((entry.lastWatched ?? 0) >= (prev.lastWatched ?? 0)) map.set(k, entry);
+}
+
 export default function ContinueWatching() {
+  return <ContinueWatchingBase />;
+}
+
+export function ContinueWatchingFiltered({
+  mediaType,
+  title,
+}: {
+  mediaType: 'movie' | 'tv';
+  title?: string;
+}) {
+  return <ContinueWatchingBase mediaType={mediaType} title={title} />;
+}
+
+function ContinueWatchingBase({
+  mediaType,
+  title,
+}: {
+  mediaType?: 'movie' | 'tv';
+  title?: string;
+}) {
   const [items, setItems] = useState<DisplayEntry[]>([]);
 
   useEffect(() => {
     // Read from localStorage immediately — works without login
     const local = getLocalInProgress().map(fromLocal);
     const map = new Map<string, DisplayEntry>();
-    for (const h of local) map.set(h.key, h);
+    for (const h of local) upsertBest(map, h);
 
     // Cookie history fallback (some TV browsers restrict localStorage)
     try {
       for (const h of getHistory()) {
         const p = clamp(h.progress);
         if (p < 2 || p > 95) continue;
-        const key = `${h.mediaType}-${h.id}-${h.season ?? null}-${h.episode ?? null}`;
-        if (!map.has(key)) {
-          map.set(key, {
-            key,
-            mediaId: h.id,
-            mediaType: h.mediaType,
-            title: h.title,
-            posterPath: h.posterPath,
-            progress: p,
-            season: h.season,
-            episode: h.episode,
-            lastWatched: h.lastWatched,
-          });
-        }
+        const entry: DisplayEntry = {
+          key: `${h.mediaType}-${h.id}-${h.season ?? null}-${h.episode ?? null}-cookie`,
+          mediaId: h.id,
+          mediaType: h.mediaType,
+          title: h.title,
+          posterPath: h.posterPath,
+          progress: p,
+          currentTime: h.currentTime,
+          duration: h.duration,
+          season: h.season,
+          episode: h.episode,
+          lastWatched: h.lastWatched,
+        };
+        upsertBest(map, entry);
       }
     } catch {
       // ignore cookie parse errors
@@ -73,7 +140,9 @@ export default function ContinueWatching() {
 
     if (map.size)
       setItems(
-        Array.from(map.values()).sort(
+        Array.from(map.values())
+          .filter((i) => (mediaType ? i.mediaType === mediaType : true))
+          .sort(
           (a, b) => (b.lastWatched ?? 0) - (a.lastWatched ?? 0),
         ),
       );
@@ -86,30 +155,32 @@ export default function ContinueWatching() {
         // Overlay API entries (may include other-device progress)
         // Overlay API entries (may include other-device progress)
         for (const r of data.history as Record<string, unknown>[]) {
-          const key = `${r.media_type}-${r.media_id}-${r.season ?? null}-${r.episode ?? null}`;
-          map.set(key, {
-            key,
+          const entry: DisplayEntry = {
+            key: `${r.media_type}-${r.media_id}-${r.season ?? null}-${r.episode ?? null}-db`,
             mediaId: r.media_id as number,
             mediaType: r.media_type as 'movie' | 'tv',
             title: r.title as string,
             posterPath: (r.poster_path as string) ?? null,
             progress: clamp(r.progress as number),
+            currentTime: (r.current_time as number | null) ?? undefined,
+            duration: (r.duration as number | null) ?? undefined,
             season: (r.season as number | null) ?? undefined,
             episode: (r.episode as number | null) ?? undefined,
             lastWatched:
               typeof r.last_watched === 'string' || typeof r.last_watched === 'number'
                 ? new Date(r.last_watched as string | number).getTime()
                 : undefined,
-          });
+          };
+          upsertBest(map, entry);
         }
         setItems(
-          Array.from(map.values()).sort(
-            (a, b) => (b.lastWatched ?? 0) - (a.lastWatched ?? 0),
-          ),
+          Array.from(map.values())
+            .filter((i) => (mediaType ? i.mediaType === mediaType : true))
+            .sort((a, b) => (b.lastWatched ?? 0) - (a.lastWatched ?? 0)),
         );
       })
       .catch(() => {});
-  }, []);
+  }, [mediaType]);
 
   if (!items.length) return null;
 
@@ -117,7 +188,7 @@ export default function ContinueWatching() {
     <section className="mb-10 group/row">
       <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 mb-3">
         <h2 className="row-title text-base sm:text-lg font-semibold text-white">
-          Continue Watching
+          {title ?? 'Continue Watching'}
         </h2>
       </div>
       <div className="flex gap-3 overflow-x-auto scrollbar-hide px-4 sm:px-6 lg:px-8 pb-2">

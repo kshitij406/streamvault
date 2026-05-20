@@ -43,18 +43,26 @@ export default function MediaRow({ title, items, mediaType }: Props) {
 
   return (
     <section className="mb-10 group/row" onKeyDown={handleKeyDown}>
-      <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 mb-3">
-        <h2 className="row-title text-base sm:text-lg font-semibold text-white">{title}</h2>
+      <div className="flex items-end justify-between px-4 sm:px-6 lg:px-8 mb-3">
+        <div>
+          <h2 className="row-title text-base sm:text-lg font-semibold text-white">{title}</h2>
+          <p className="text-xs text-gray-500 mt-0.5">Handpicked from TMDB</p>
+        </div>
+        <span className="hidden sm:inline text-xs text-gray-500 group-hover/row:text-gray-300 transition-colors">
+          Scroll
+        </span>
       </div>
 
-      <div className="relative">
+      <div className="relative sv-row-mask">
         <button
           onClick={() => scroll('left')}
           tabIndex={-1}
-          className="absolute left-0 top-0 bottom-0 z-10 w-10 flex items-center justify-center bg-gradient-to-r from-background to-transparent opacity-0 group-hover/row:opacity-100 transition-opacity"
+          className="absolute left-0 top-0 bottom-0 z-10 w-12 flex items-center justify-center opacity-0 group-hover/row:opacity-100 transition-opacity"
           aria-label="Scroll left"
         >
-          <ChevronLeft className="w-5 h-5 text-white" />
+          <div className="w-9 h-9 rounded-full bg-black/35 backdrop-blur-md ring-1 ring-white/10 flex items-center justify-center">
+            <ChevronLeft className="w-5 h-5 text-white" />
+          </div>
         </button>
 
         <div
@@ -69,10 +77,12 @@ export default function MediaRow({ title, items, mediaType }: Props) {
         <button
           onClick={() => scroll('right')}
           tabIndex={-1}
-          className="absolute right-0 top-0 bottom-0 z-10 w-10 flex items-center justify-center bg-gradient-to-l from-background to-transparent opacity-0 group-hover/row:opacity-100 transition-opacity"
+          className="absolute right-0 top-0 bottom-0 z-10 w-12 flex items-center justify-center opacity-0 group-hover/row:opacity-100 transition-opacity"
           aria-label="Scroll right"
         >
-          <ChevronRight className="w-5 h-5 text-white" />
+          <div className="w-9 h-9 rounded-full bg-black/35 backdrop-blur-md ring-1 ring-white/10 flex items-center justify-center">
+            <ChevronRight className="w-5 h-5 text-white" />
+          </div>
         </button>
       </div>
     </section>

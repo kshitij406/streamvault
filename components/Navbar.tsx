@@ -50,8 +50,10 @@ export default function Navbar() {
 
           {/* Left: logo + primary nav */}
           <div className="flex items-center gap-6 lg:gap-8">
-            <Link href="/" className="flex items-center gap-1.5 flex-shrink-0">
-              <Play className="w-5 h-5 text-accent fill-accent" />
+            <Link href="/" className="flex items-center gap-2 flex-shrink-0">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-accent/90 to-accent ring-1 ring-white/10 flex items-center justify-center shadow">
+                <Play className="w-4 h-4 text-white fill-white" />
+              </div>
               <span className="text-base sm:text-lg font-bold tracking-tight">
                 Stream<span className="text-accent">Vault</span>
               </span>

@@ -19,7 +19,7 @@ export default function BottomNav() {
     href === '/' ? pathname === '/' : pathname.startsWith(href);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background/95 backdrop-blur-md border-t border-white/10 safe-area-inset-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background/90 backdrop-blur-md border-t border-white/10 safe-area-inset-bottom">
       <div className="flex items-stretch h-14">
         {links.map(({ href, icon: Icon, label }) => {
           const active = isActive(href);
@@ -31,7 +31,7 @@ export default function BottomNav() {
                 active ? 'text-accent' : 'text-gray-500 active:text-gray-300'
               }`}
             >
-              <Icon className={`w-5 h-5 ${active ? 'fill-accent/20' : ''}`} strokeWidth={active ? 2.5 : 1.75} />
+              <Icon className={`w-5 h-5 ${active ? 'fill-accent/15' : ''}`} strokeWidth={active ? 2.5 : 1.75} />
               <span className="text-[10px] font-medium">{label}</span>
             </Link>
           );

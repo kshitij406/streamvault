@@ -124,6 +124,47 @@ export async function getTVExternalIds(id: number): Promise<{ imdb_id: string | 
   return fetchTMDB<{ imdb_id: string | null }>(`/tv/${id}/external_ids`);
 }
 
+type TMDBVideo = {
+  id: string;
+  key: string;
+  name: string;
+  site: 'YouTube' | string;
+  type: string;
+  official?: boolean;
+};
+
+function pickTrailer(videos: TMDBVideo[]): TMDBVideo | null {
+  const yt = (videos ?? []).filter((v) => v.site === 'YouTube');
+  if (!yt.length) return null;
+
+  const score = (v: TMDBVideo) => {
+    const name = (v.name ?? '').toLowerCase();
+    const type = (v.type ?? '').toLowerCase();
+    let s = 0;
+    if (v.official) s += 3;
+    if (type === 'trailer') s += 4;
+    if (type === 'teaser') s += 2;
+    if (name.includes('official')) s += 2;
+    if (name.includes('trailer')) s += 2;
+    if (name.includes('teaser')) s += 1;
+    return s;
+  };
+
+  return yt.sort((a, b) => score(b) - score(a))[0] ?? null;
+}
+
+export async function getMovieTrailerKey(id: number): Promise<string | null> {
+  const data = await fetchTMDB<{ results: TMDBVideo[] }>(`/movie/${id}/videos`, { language: 'en-US' }, 86400);
+  const best = pickTrailer(data.results ?? []);
+  return best?.key ?? null;
+}
+
+export async function getTVTrailerKey(id: number): Promise<string | null> {
+  const data = await fetchTMDB<{ results: TMDBVideo[] }>(`/tv/${id}/videos`, { language: 'en-US' }, 86400);
+  const best = pickTrailer(data.results ?? []);
+  return best?.key ?? null;
+}
+
 export async function getDiscoverMovies(genreIds: number[]): Promise<Movie[]> {
   if (!genreIds.length) return [];
   const data = await fetchTMDB<{ results: Movie[] }>('/discover/movie', {

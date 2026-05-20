@@ -12,6 +12,8 @@ export interface LocalEntry {
   season: number | null;
   episode: number | null;
   genreIds: number[];
+  // Embed server that was used when this entry was saved.
+  serverId?: 'vidking' | 'vidsrc' | 'embedsu';
   lastWatched: number; // ms timestamp
 }
 
@@ -36,7 +38,8 @@ export function upsertLocalHistory(entry: Omit<LocalEntry, 'lastWatched'>) {
         h.mediaId === entry.mediaId &&
         h.mediaType === entry.mediaType &&
         h.season === entry.season &&
-        h.episode === entry.episode
+        h.episode === entry.episode &&
+        (h.serverId ?? null) === (entry.serverId ?? null)
       ),
   );
   write([{ ...entry, lastWatched: Date.now() }, ...list]);

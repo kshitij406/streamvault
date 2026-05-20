@@ -112,5 +112,7 @@ export interface ProgressData {
   progress: number;
   season?: number;
   episode?: number;
+  // Which embed server last saved this progress (used for Continue Watching).
+  serverId?: 'vidking' | 'vidsrc' | 'embedsu';
   updatedAt: number;
 }

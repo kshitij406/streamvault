@@ -36,7 +36,9 @@ export default function Player({
   const [selectedServer, setSelectedServer] = useState<ServerId>('vidking');
   const [activeCue, setActiveCue] = useState<SubCue | null>(null);
   const [subtitleOffset, setSubtitleOffset] = useState(0);
-  const [popupProtection, setPopupProtection] = useState(true);
+  // NOTE: Some embeds intentionally break when sandboxed (they show an
+  // "Iframe Sandbox Detected" error). For those, we must keep sandbox off.
+  const [popupProtection, setPopupProtection] = useState(false);
 
   const src = buildServerUrl(selectedServer, mediaType, id, season, episode);
 
@@ -67,6 +69,7 @@ export default function Player({
         season: season ?? null,
         episode: episode ?? null,
         genreIds: genreIds ?? [],
+        serverId: selectedServer,
       });
 
       // Cookie-based fallback for browsers that restrict localStorage.
@@ -76,6 +79,7 @@ export default function Player({
         progress: fallbackProgress,
         season,
         episode,
+        serverId: selectedServer,
       });
       addToHistory({
         id,
@@ -191,6 +195,7 @@ export default function Player({
           season: season ?? null,
           episode: episode ?? null,
           genreIds: genreIds ?? [],
+          serverId: selectedServer,
         });
 
         // Persist minimal progress into cookies so resume/continue works on
@@ -201,6 +206,7 @@ export default function Player({
           progress,
           season,
           episode,
+          serverId: selectedServer,
         });
         addToHistory({
           id,
@@ -238,7 +244,7 @@ export default function Player({
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [mediaType, id, season, episode, title, posterPath, year, genreIds, subtitleOffset]);
+  }, [mediaType, id, season, episode, title, posterPath, year, genreIds, subtitleOffset, selectedServer]);
 
   return (
     <div>
@@ -246,8 +252,8 @@ export default function Player({
         <iframe
           src={src}
           className="absolute inset-0 w-full h-full"
-          // Sandbox blocks window.open / top navigation used by ad popups.
-          // Toggleable in case a provider requires popups to function.
+          // Popup Guard uses sandbox to block window.open/top navigation.
+          // Some providers refuse to run inside any sandboxed iframe.
           sandbox={
             popupProtection
               ? 'allow-scripts allow-same-origin allow-forms allow-presentation'
@@ -287,7 +293,7 @@ export default function Player({
           </button>
         ))}
 
-        <span className="text-xs text-gray-500 ml-2">Pop-ups:</span>
+        <span className="text-xs text-gray-500 ml-2">Popup Guard:</span>
         <button
           onClick={() => setPopupProtection((v) => !v)}
           className={`text-xs px-3 py-1 rounded-lg border transition-colors ${
@@ -297,11 +303,11 @@ export default function Player({
           }`}
           title={
             popupProtection
-              ? 'Popup protection is ON (blocks new tabs)'
-              : 'Popup protection is OFF'
+              ? 'ON: blocks new tabs (may break some embeds)'
+              : 'OFF: best compatibility'
           }
         >
-          {popupProtection ? 'Blocked' : 'Allowed'}
+          {popupProtection ? 'On' : 'Off'}
         </button>
 
         <span className="text-xs text-gray-500 ml-2">Sub offset:</span>

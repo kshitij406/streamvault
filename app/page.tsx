@@ -10,7 +10,7 @@ import {
   getDiscoverMovies,
 } from '@/lib/tmdb';
 import { getTopGenresFromCookieHeader } from '@/lib/history';
-import HeroSection from '@/components/HeroSection';
+import HeroCarousel from '@/components/HeroCarousel';
 import MediaRow from '@/components/MediaRow';
 import ContinueWatching from '@/components/ContinueWatching';
 import BecauseYouWatched from '@/components/BecauseYouWatched';
@@ -54,12 +54,14 @@ export default async function HomePage() {
         : Promise.resolve([] as Awaited<ReturnType<typeof getTrendingMovies>>),
     ]);
 
-  const heroMovie =
-    trendingMovies[Math.floor(Math.random() * Math.min(5, trendingMovies.length))];
+  const heroItems = [
+    ...trendingMovies.slice(0, 6).map((m) => ({ mediaType: 'movie' as const, item: m })),
+    ...trendingTV.slice(0, 4).map((t) => ({ mediaType: 'tv' as const, item: t })),
+  ];
 
   return (
     <div className="min-h-screen bg-background">
-      {heroMovie && <HeroSection movie={heroMovie} />}
+      {heroItems.length > 0 && <HeroCarousel items={heroItems} label="Featured" />}
 
       <div className="pt-6 pb-12">
         {/* Works for everyone via localStorage */}
