@@ -68,6 +68,13 @@ export function addToHistory(entry: Omit<HistoryEntry, 'lastWatched'>): void {
   setCookieJson(COOKIE, raw);
 }
 
+export function removeFromHistory(mediaType: 'movie' | 'tv', id: number): void {
+  const raw = getCookieJson<HistoryCompact[]>(COOKIE, []).filter(
+    (c) => !(c.i === id && c.m === mediaType),
+  );
+  setCookieJson(COOKIE, raw);
+}
+
 export function getTopGenres(): number[] {
   const freq: Record<number, number> = {};
   for (const c of getCookieJson<HistoryCompact[]>(COOKIE, [])) {

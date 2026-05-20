@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Play } from 'lucide-react';
+import { Play, X } from 'lucide-react';
 import { getImageUrl } from '@/lib/tmdb';
-import { getLocalInProgress, type LocalEntry } from '@/lib/localHistory';
-import { getHistory } from '@/lib/history';
+import { getLocalInProgress, removeLocalHistoryBase, type LocalEntry } from '@/lib/localHistory';
+import { getHistory, removeFromHistory } from '@/lib/history';
+import { removeProgress } from '@/lib/progress';
 
 interface DisplayEntry {
   key: string;
@@ -42,8 +43,26 @@ function clamp(n: number) {
   return Math.max(0, Math.min(100, n));
 }
 
+function formatTimeLeft(duration: number, progress: number): string {
+  if (duration > 0) {
+    const secsLeft = duration * (1 - progress / 100);
+    if (secsLeft > 0) {
+      const mins = Math.round(secsLeft / 60);
+      if (mins < 60) return `${mins}m left`;
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      return m > 0 ? `${h}h ${m}m left` : `${h}h left`;
+    }
+  }
+  return `${Math.round(progress)}% watched`;
+}
+
 function baseKey(e: Pick<DisplayEntry, 'mediaType' | 'mediaId' | 'season' | 'episode'>) {
   return `${e.mediaType}-${e.mediaId}-${e.season ?? null}-${e.episode ?? null}`;
+}
+
+function removeBaseKeySetKey(e: Pick<DisplayEntry, 'mediaType' | 'mediaId' | 'season' | 'episode'>) {
+  return baseKey(e);
 }
 
 function upsertBest(
@@ -107,6 +126,21 @@ function ContinueWatchingBase({
   title?: string;
 }) {
   const [items, setItems] = useState<DisplayEntry[]>([]);
+  const [removed, setRemoved] = useState<Set<string>>(() => new Set());
+
+  // Persisted hide list: users can remove items from Continue Watching.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('sv_cw_hidden');
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as string[];
+      if (Array.isArray(parsed)) setRemoved(new Set(parsed));
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const removedKeyList = useMemo(() => Array.from(removed.values()), [removed]);
 
   useEffect(() => {
     // Read from localStorage immediately — works without login
@@ -142,6 +176,7 @@ function ContinueWatchingBase({
       setItems(
         Array.from(map.values())
           .filter((i) => (mediaType ? i.mediaType === mediaType : true))
+          .filter((i) => !removed.has(removeBaseKeySetKey(i)))
           .sort(
           (a, b) => (b.lastWatched ?? 0) - (a.lastWatched ?? 0),
         ),
@@ -152,7 +187,6 @@ function ContinueWatchingBase({
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (!data?.history?.length) return;
-        // Overlay API entries (may include other-device progress)
         // Overlay API entries (may include other-device progress)
         for (const r of data.history as Record<string, unknown>[]) {
           const entry: DisplayEntry = {
@@ -176,11 +210,54 @@ function ContinueWatchingBase({
         setItems(
           Array.from(map.values())
             .filter((i) => (mediaType ? i.mediaType === mediaType : true))
+            .filter((i) => !removed.has(removeBaseKeySetKey(i)))
             .sort((a, b) => (b.lastWatched ?? 0) - (a.lastWatched ?? 0)),
         );
       })
       .catch(() => {});
-  }, [mediaType]);
+  }, [mediaType, removedKeyList]);
+
+  const removeItem = async (item: DisplayEntry) => {
+    const key = removeBaseKeySetKey(item);
+
+    setItems((prev) => prev.filter((x) => removeBaseKeySetKey(x) !== key));
+    setRemoved((prev) => {
+      const next = new Set(prev);
+      next.add(key);
+      try {
+        localStorage.setItem('sv_cw_hidden', JSON.stringify(Array.from(next.values()).slice(0, 200)));
+      } catch {}
+      return next;
+    });
+
+    // Best-effort: also purge from our local/cookie stores to keep future merges clean.
+    try {
+      removeLocalHistoryBase({
+        mediaId: item.mediaId,
+        mediaType: item.mediaType,
+        season: item.season,
+        episode: item.episode,
+      });
+    } catch {}
+    try {
+      removeFromHistory(item.mediaType, item.mediaId);
+    } catch {}
+    try {
+      removeProgress(item.mediaType, item.mediaId);
+    } catch {}
+
+    // If logged in, also delete the matching DB history row.
+    fetch('/api/history', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mediaId: item.mediaId,
+        mediaType: item.mediaType,
+        season: item.season ?? null,
+        episode: item.episode ?? null,
+      }),
+    }).catch(() => {});
+  };
 
   if (!items.length) return null;
 
@@ -225,6 +302,20 @@ function ContinueWatchingBase({
                   <Play className="w-10 h-10 fill-white text-white" />
                 </div>
 
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    removeItem(item);
+                  }}
+                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity p-1.5 rounded-full bg-black/60 text-gray-200 hover:bg-black/80"
+                  title="Remove from Continue Watching"
+                  aria-label="Remove from Continue Watching"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+
                  <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-white/15">
                   <div
                     className="h-full bg-accent"
@@ -246,7 +337,7 @@ function ContinueWatchingBase({
                   {item.title}
                 </p>
                  <p className="text-xs text-gray-500 mt-0.5 tabular-nums">
-                  {Math.round(item.progress)}% watched
+                  {formatTimeLeft(item.duration ?? 0, item.progress)}
                 </p>
               </div>
             </Link>

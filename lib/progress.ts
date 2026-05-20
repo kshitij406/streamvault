@@ -65,6 +65,13 @@ export function saveProgress(
   setCookieJson(COOKIE, entries);
 }
 
+export function removeProgress(mediaType: 'movie' | 'tv', id: number): void {
+  const entries = getCookieJson<ProgressEntry[]>(COOKIE, []);
+  const prefix = `${mediaType[0]}_${id}`;
+  const next = entries.filter((e) => !(e.key === prefix || e.key.startsWith(prefix + '_')));
+  setCookieJson(COOKIE, next);
+}
+
 export function formatTime(seconds: number): string {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);

@@ -67,7 +67,10 @@ export default function SearchPage() {
         </div>
 
         {query && !loading && results.length === 0 && (
-          <p className="text-gray-500 text-center py-12">No results found for &quot;{query}&quot;</p>
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <p className="text-gray-400 font-medium mb-1">No results for &quot;{query}&quot;</p>
+            <p className="text-gray-600 text-sm">Try a different title or check the spelling</p>
+          </div>
         )}
 
         {results.length > 0 && (
@@ -80,8 +83,25 @@ export default function SearchPage() {
 
         {!query && (
           <div className="flex flex-col items-center justify-center py-24 text-center">
-            <Search className="w-12 h-12 text-gray-700 mb-4" />
-            <p className="text-gray-500">Start typing to search for movies and TV shows</p>
+            <div className="w-20 h-20 rounded-full bg-white/[0.04] border border-white/10 flex items-center justify-center mb-5">
+              <Search className="w-9 h-9 text-gray-600" />
+            </div>
+            <p className="text-gray-300 text-lg font-semibold mb-2">Find your next watch</p>
+            <p className="text-gray-600 text-sm max-w-xs">
+              Search across thousands of movies and TV shows — type anything to get started
+            </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-2">
+              {['Breaking Bad', 'Inception', 'The Bear', 'Parasite', 'Succession'].map((term) => (
+                <button
+                  key={term}
+                  type="button"
+                  onClick={() => setQuery(term)}
+                  className="text-xs px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 hover:border-white/20 transition-colors"
+                >
+                  {term}
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>

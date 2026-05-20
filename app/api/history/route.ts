@@ -24,12 +24,60 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ history: rows });
 }
 
+export async function DELETE(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { mediaId, mediaType, season, episode } = await req.json();
+  const userId = session.user.id;
+
+  await sql`
+    DELETE FROM watch_history
+    WHERE user_id = ${userId}
+      AND media_id = ${mediaId}
+      AND media_type = ${mediaType}
+      AND (season IS NOT DISTINCT FROM ${season ?? null})
+      AND (episode IS NOT DISTINCT FROM ${episode ?? null})
+  `;
+
+  return NextResponse.json({ success: true });
+}
+
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { mediaId, mediaType, title, posterPath, year, genreIds, season, episode, currentTime, duration, progress } = await req.json();
   const userId = session.user.id;
+
+  // A progress save may arrive with "unknown" duration (providers without postMessages).
+  // Don’t clobber a more precise DB entry with a worse one.
+  const prev = await sql`
+    SELECT current_time, duration, progress FROM watch_history
+    WHERE user_id = ${userId}
+      AND media_id = ${mediaId}
+      AND media_type = ${mediaType}
+      AND (season IS NOT DISTINCT FROM ${season ?? null})
+      AND (episode IS NOT DISTINCT FROM ${episode ?? null})
+    LIMIT 1
+  `.catch(() => []);
+
+  const prevRow = (prev as unknown as { current_time: number; duration: number; progress: number }[])[0];
+  const prevDuration = prevRow?.duration ?? 0;
+  const nextDuration = typeof duration === 'number' ? duration : 0;
+  const nextCurrent = typeof currentTime === 'number' ? currentTime : 0;
+  const nextProgress = typeof progress === 'number' ? progress : 0;
+
+  // Reject regressions: if we already have duration and the next save doesn't,
+  // and it's not clearly ahead, keep the old entry.
+  if (prevRow && prevDuration > 0 && nextDuration <= 0) {
+    const prevCurrent = prevRow.current_time ?? 0;
+    const prevProgress = prevRow.progress ?? 0;
+    const nextClearlyAhead = nextCurrent > prevCurrent + 45 || nextProgress > prevProgress + 2;
+    if (!nextClearlyAhead) {
+      return NextResponse.json({ success: true, ignored: true });
+    }
+  }
 
   await sql`
     DELETE FROM watch_history

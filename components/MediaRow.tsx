@@ -43,14 +43,8 @@ export default function MediaRow({ title, items, mediaType }: Props) {
 
   return (
     <section className="mb-10 group/row" onKeyDown={handleKeyDown} data-tv-row>
-      <div className="flex items-end justify-between px-4 sm:px-6 lg:px-8 mb-3">
-        <div>
-          <h2 className="row-title text-base sm:text-lg font-semibold text-white">{title}</h2>
-          <p className="text-xs text-gray-500 mt-0.5">Handpicked from TMDB</p>
-        </div>
-        <span className="hidden sm:inline text-xs text-gray-500 group-hover/row:text-gray-300 transition-colors">
-          Scroll
-        </span>
+      <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 mb-3">
+        <h2 className="row-title text-base sm:text-lg font-semibold text-white">{title}</h2>
       </div>
 
       <div className="relative sv-row-mask">

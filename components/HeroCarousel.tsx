@@ -22,12 +22,13 @@ export default function HeroCarousel({
 }) {
   const list = useMemo(() => items.slice(0, 8), [items]);
   const [idx, setIdx] = useState(0);
+  const [paused, setPaused] = useState(false);
 
   useEffect(() => {
-    if (list.length <= 1) return;
+    if (list.length <= 1 || paused) return;
     const t = window.setInterval(() => setIdx((i) => (i + 1) % list.length), autoMs);
     return () => window.clearInterval(t);
-  }, [list.length, autoMs]);
+  }, [list.length, autoMs, paused]);
 
   const current = list[idx];
   if (!current) return null;
@@ -40,7 +41,11 @@ export default function HeroCarousel({
   const primaryPlayHref = isMovie ? href : `/tv/${current.item.id}/1/1`;
 
   return (
-    <section className="relative overflow-hidden">
+    <section
+      className="relative overflow-hidden"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
       <div className="relative h-[62vh] min-h-[420px] sm:h-[76vh] sm:min-h-[560px] w-full overflow-hidden">
         {backdrop && (
           <Image

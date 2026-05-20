@@ -3,8 +3,11 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Star, BookOpen, Eye, Clock } from 'lucide-react';
+import { Star, BookOpen, Eye, Clock, LogIn } from 'lucide-react';
 import { getImageUrl } from '@/lib/tmdb';
+import { getLocalHistory } from '@/lib/localHistory';
+import { getHistory } from '@/lib/history';
+import { getAllRatings, isWatched } from '@/lib/ratings';
 
 interface DiaryEntry {
   id: number;
@@ -63,13 +66,77 @@ function StarDisplay({ rating }: { rating: number }) {
 export default function DiaryPage() {
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
   const [mounted, setMounted] = useState(false);
+  const [isGuest, setIsGuest] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+
+    // Build local/cookie diary for instant display (and guest fallback)
+    const cookieRatings = getAllRatings();
+    const cookieRatingsMap = new Map<string, number>(
+      cookieRatings.map((r) => [`${r.mediaType[0]}_${r.id}`, r.rating]),
+    );
+
+    const localAll = getLocalHistory();
+    const cookieAll = (() => { try { return getHistory(); } catch { return []; } })();
+
+    const seenKeys = new Set<string>();
+    const localEntries: DiaryEntry[] = [];
+
+    for (const h of localAll) {
+      const k = `${h.mediaType}-${h.mediaId}`;
+      if (seenKeys.has(k)) continue;
+      seenKeys.add(k);
+      const rk = `${h.mediaType[0]}_${h.mediaId}`;
+      localEntries.push({
+        id: h.mediaId,
+        mediaType: h.mediaType,
+        title: h.title,
+        posterPath: h.posterPath,
+        year: '',
+        progress: h.progress,
+        lastWatched: h.lastWatched,
+        season: h.season ?? undefined,
+        episode: h.episode ?? undefined,
+        userRating: cookieRatingsMap.get(rk) ?? null,
+        markedWatched: isWatched(h.mediaType, h.mediaId),
+      });
+    }
+
+    for (const h of cookieAll) {
+      const k = `${h.mediaType}-${h.id}`;
+      if (seenKeys.has(k)) continue;
+      seenKeys.add(k);
+      const rk = `${h.mediaType[0]}_${h.id}`;
+      localEntries.push({
+        id: h.id,
+        mediaType: h.mediaType,
+        title: h.title,
+        posterPath: h.posterPath,
+        year: h.year,
+        progress: h.progress,
+        lastWatched: h.lastWatched,
+        season: h.season,
+        episode: h.episode,
+        userRating: cookieRatingsMap.get(rk) ?? null,
+        markedWatched: isWatched(h.mediaType, h.id),
+      });
+    }
+
+    localEntries.sort((a, b) => b.lastWatched - a.lastWatched);
+
+    // Show local data immediately
+    if (localEntries.length) setEntries(localEntries);
+
+    // Fetch API (logged-in users get cross-device history)
     Promise.all([
-      fetch('/api/history').then(r => r.json()),
-      fetch('/api/ratings').then(r => r.json()),
+      fetch('/api/history').then(r => r.json()).catch(() => ({ history: [] })),
+      fetch('/api/ratings').then(r => r.json()).catch(() => ({ ratings: [] })),
     ]).then(([{ history }, { ratings }]) => {
+      if (!history?.length) {
+        setIsGuest(true);
+        return;
+      }
       const ratingMap: Record<string, { rating: number | null; watched: boolean }> = {};
       for (const r of ratings ?? []) {
         ratingMap[`${r.media_type}_${r.media_id}`] = { rating: r.rating, watched: r.watched };
@@ -91,7 +158,7 @@ export default function DiaryPage() {
         };
       });
       setEntries(enriched);
-    }).catch(() => {});
+    });
   }, []);
 
   if (!mounted) {
@@ -116,7 +183,7 @@ export default function DiaryPage() {
   return (
     <div className="min-h-screen bg-background pt-24 pb-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
-        <div className="flex items-center gap-3 mb-8">
+        <div className="flex items-center gap-3 mb-4">
           <BookOpen className="w-6 h-6 text-accent" />
           <h1 className="text-2xl sm:text-3xl font-bold text-white">My Diary</h1>
           {entries.length > 0 && (
@@ -124,17 +191,33 @@ export default function DiaryPage() {
           )}
         </div>
 
+        {isGuest && entries.length > 0 && (
+          <div className="flex items-center gap-3 mb-6 px-4 py-3 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-gray-400">
+            <LogIn className="w-4 h-4 text-accent flex-shrink-0" />
+            <span>Showing local history — <Link href="/login" className="text-accent hover:underline">sign in</Link> to sync across devices</span>
+          </div>
+        )}
+
         {entries.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <BookOpen className="w-12 h-12 text-gray-700 mb-4" />
             <p className="text-gray-400 text-lg font-medium mb-2">Your diary is empty</p>
             <p className="text-gray-600 text-sm mb-6">Start watching movies and shows to build your diary</p>
-            <Link
-              href="/"
-              className="bg-accent hover:bg-accent/80 text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors"
-            >
-              Browse Content
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link
+                href="/"
+                className="bg-accent hover:bg-accent/80 text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors"
+              >
+                Browse Content
+              </Link>
+              <Link
+                href="/login"
+                className="flex items-center gap-2 border border-white/15 hover:border-white/30 text-gray-300 hover:text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors"
+              >
+                <LogIn className="w-4 h-4" />
+                Sign in to sync history
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="space-y-3">

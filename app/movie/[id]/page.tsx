@@ -1,5 +1,4 @@
 import Image from 'next/image';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Star, Clock, Calendar, Play } from 'lucide-react';
 import {
@@ -179,13 +178,13 @@ export default async function MoviePage({ params }: Props) {
             )}
 
             <div className="flex flex-wrap items-center gap-3">
-              <Link
-                href={`/movie/${id}`}
+              <a
+                href="#player"
                 className="flex items-center gap-2 bg-accent hover:bg-accent/80 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors"
               >
                 <Play className="w-4 h-4 fill-white" />
                 Play Now
-              </Link>
+              </a>
               <TrailerButton mediaType="movie" id={id} title={movie.title} />
               <ResumeButton mediaType="movie" id={id} />
               <WatchlistButton item={watchlistItem} size="md" />
@@ -198,7 +197,7 @@ export default async function MoviePage({ params }: Props) {
           </div>
         </div>
 
-        <div className="mb-8">
+        <div id="player" className="mb-8 scroll-mt-20">
           <Player
             mediaType="movie"
             id={id}
