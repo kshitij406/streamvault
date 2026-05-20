@@ -25,7 +25,8 @@ export default function AdBlockBanner() {
 
   return (
     <div
-      className={`fixed bottom-0 left-0 right-0 z-50 transition-transform duration-300 ease-out ${
+      // Keep clear of the mobile bottom tab bar.
+      className={`fixed bottom-14 md:bottom-0 left-0 right-0 z-50 transition-transform duration-300 ease-out ${
         mounted ? 'translate-y-0' : 'translate-y-full'
       }`}
       style={{ backgroundColor: '#1a1a1a', borderTop: '2px solid #e50914' }}

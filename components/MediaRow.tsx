@@ -42,7 +42,7 @@ export default function MediaRow({ title, items, mediaType }: Props) {
   if (!items.length) return null;
 
   return (
-    <section className="mb-10 group/row" onKeyDown={handleKeyDown}>
+    <section className="mb-10 group/row" onKeyDown={handleKeyDown} data-tv-row>
       <div className="flex items-end justify-between px-4 sm:px-6 lg:px-8 mb-3">
         <div>
           <h2 className="row-title text-base sm:text-lg font-semibold text-white">{title}</h2>
