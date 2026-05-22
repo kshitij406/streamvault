@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Bookmark, BookmarkCheck } from 'lucide-react';
-import { useSession } from 'next-auth/react';
+import useSafeSession from '@/lib/useSafeSession';
 import { WatchlistItem } from '@/types';
 
 interface Props {
@@ -14,7 +14,7 @@ interface Props {
 
 export default function WatchlistButton({ item, size = 'md', className = '' }: Props) {
   const [saved, setSaved] = useState(false);
-  const { data: session } = useSession();
+  const session = useSafeSession();
   const router = useRouter();
 
   useEffect(() => {

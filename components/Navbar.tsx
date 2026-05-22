@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { useSession, signOut } from 'next-auth/react';
+import { signOut } from 'next-auth/react';
+import useSafeSession from '@/lib/useSafeSession';
 import {
   Search, Bookmark, Menu, X, Play, Film, Tv, LogOut, ChevronDown, BookOpen, Tv2, LayoutGrid,
 } from 'lucide-react';
@@ -13,7 +14,7 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const { data: session } = useSession();
+  const session = useSafeSession();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);

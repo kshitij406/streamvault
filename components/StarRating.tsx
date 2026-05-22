@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Star } from 'lucide-react';
-import { useSession } from 'next-auth/react';
+import useSafeSession from '@/lib/useSafeSession';
 
 interface Props {
   mediaType: 'movie' | 'tv';
@@ -13,7 +13,7 @@ interface Props {
 export default function StarRating({ mediaType, id }: Props) {
   const [rating, setRatingState] = useState<number | null>(null);
   const [hover, setHover] = useState<number | null>(null);
-  const { data: session } = useSession();
+  const session = useSafeSession();
   const router = useRouter();
 
   useEffect(() => {

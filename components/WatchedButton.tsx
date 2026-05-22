@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff } from 'lucide-react';
-import { useSession } from 'next-auth/react';
+import useSafeSession from '@/lib/useSafeSession';
 
 interface Props {
   mediaType: 'movie' | 'tv';
@@ -12,7 +12,7 @@ interface Props {
 
 export default function WatchedButton({ mediaType, id }: Props) {
   const [watched, setWatched] = useState(false);
-  const { data: session } = useSession();
+  const session = useSafeSession();
   const router = useRouter();
 
   useEffect(() => {
