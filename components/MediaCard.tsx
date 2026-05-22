@@ -2,12 +2,10 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
-import { Play, Star } from 'lucide-react';
+import { Star } from 'lucide-react';
 import { Movie, TVShow } from '@/types';
 import { getImageUrl } from '@/lib/tmdb';
 import WatchlistButton from './WatchlistButton';
-import TrailerModal from './TrailerModal';
 
 type Props = {
   item: Movie | TVShow;
@@ -26,24 +24,6 @@ export default function MediaCard({ item, mediaType }: Props) {
   const poster = getImageUrl(item.poster_path, 'w342');
   const href = `/${mediaType}/${item.id}`;
 
-  const [openTrailer, setOpenTrailer] = useState(false);
-  const [trailerKey, setTrailerKey] = useState<string | null>(null);
-  const [hovered, setHovered] = useState(false);
-  const fetched = useRef(false);
-
-  useEffect(() => {
-    if (!hovered) return;
-    if (fetched.current) return;
-    fetched.current = true;
-    fetch(`/api/trailer?type=${mediaType}&id=${item.id}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (typeof d?.key === 'string' || d?.key === null) setTrailerKey(d.key);
-      })
-      .catch(() => {
-        // ignore
-      });
-  }, [hovered, mediaType, item.id]);
 
   const watchlistItem = {
     id: item.id,
@@ -56,11 +36,9 @@ export default function MediaCard({ item, mediaType }: Props) {
   };
 
   return (
-    <>
       <Link
         href={href}
         tabIndex={0}
-        onMouseEnter={() => setHovered(true)}
         className="tv-card group flex-shrink-0 w-36 sm:w-44 block rounded-lg focus:outline-none"
       >
         {/* tv-card-overlay-parent enables focus-within styles in TV mode */}
@@ -84,24 +62,6 @@ export default function MediaCard({ item, mediaType }: Props) {
 
           <div className="tv-card-overlay absolute top-2 right-2 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-200">
             <WatchlistButton item={watchlistItem} size="sm" />
-          </div>
-
-          {/* Trailer action */}
-          <div className="sv-card-actions tv-card-overlay absolute left-2 right-2 bottom-2 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-200">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setHovered(true);
-                setOpenTrailer(true);
-              }}
-              className="w-full flex items-center justify-center gap-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-xs font-semibold px-3 py-2.5 backdrop-blur-md ring-1 ring-white/10"
-              title="Watch trailer"
-            >
-              <Play className="w-3.5 h-3.5 fill-white" />
-              Trailer
-            </button>
           </div>
 
           {/* Info strip — slides up on hover OR focus */}
@@ -128,13 +88,5 @@ export default function MediaCard({ item, mediaType }: Props) {
           </div>
         </div>
       </Link>
-
-      <TrailerModal
-        open={openTrailer}
-        title={title}
-        youtubeKey={trailerKey}
-        onClose={() => setOpenTrailer(false)}
-      />
-    </>
   );
 }
