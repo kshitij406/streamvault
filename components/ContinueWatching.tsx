@@ -53,8 +53,9 @@ function formatTimeLeft(duration: number, progress: number): string {
       const m = mins % 60;
       return m > 0 ? `${h}h ${m}m left` : `${h}h left`;
     }
+    return `${Math.round(progress)}% watched`;
   }
-  return `${Math.round(progress)}% watched`;
+  return '';
 }
 
 function baseKey(e: Pick<DisplayEntry, 'mediaType' | 'mediaId' | 'season' | 'episode'>) {
@@ -116,6 +117,12 @@ export function ContinueWatchingFiltered({
   title?: string;
 }) {
   return <ContinueWatchingBase mediaType={mediaType} title={title} />;
+}
+
+function TimeLeft({ duration, progress }: { duration: number; progress: number }) {
+  const t = formatTimeLeft(duration, progress);
+  if (!t) return null;
+  return <p className="text-xs text-gray-500 mt-0.5 tabular-nums">{t}</p>;
 }
 
 function ContinueWatchingBase({
@@ -336,9 +343,7 @@ function ContinueWatchingBase({
                 <p className="text-xs font-medium text-gray-200 truncate leading-tight">
                   {item.title}
                 </p>
-                 <p className="text-xs text-gray-500 mt-0.5 tabular-nums">
-                  {formatTimeLeft(item.duration ?? 0, item.progress)}
-                </p>
+                <TimeLeft duration={item.duration ?? 0} progress={item.progress} />
               </div>
             </Link>
           );
