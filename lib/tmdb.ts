@@ -9,42 +9,57 @@ async function fetchTMDB<T>(
   endpoint: string,
   params?: Record<string, string>,
   revalidate = 3600
-): Promise<T> {
-  const url = new URL(`${BASE_URL}${endpoint}`);
-  if (params) {
-    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+): Promise<T | null> {
+  try {
+    const url = new URL(`${BASE_URL}${endpoint}`);
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+    }
+
+    const res = await fetch(url.toString(), {
+      headers: {
+        Authorization: `Bearer ${TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      next: { revalidate },
+    });
+
+    if (!res.ok) {
+      console.error(`TMDB ${res.status}: ${endpoint}`);
+      return null;
+    }
+
+    const text = await res.text();
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      console.error(`TMDB non-JSON response for ${endpoint}:`, text.slice(0, 120));
+      return null;
+    }
+  } catch (err) {
+    console.error(`TMDB fetch error for ${endpoint}:`, err);
+    return null;
   }
-
-  const res = await fetch(url.toString(), {
-    headers: {
-      Authorization: `Bearer ${TOKEN}`,
-      'Content-Type': 'application/json',
-    },
-    next: { revalidate },
-  });
-
-  if (!res.ok) throw new Error(`TMDB ${res.status}: ${endpoint}`);
-  return res.json();
 }
 
 export async function getTrendingMovies(): Promise<Movie[]> {
   const data = await fetchTMDB<{ results: Movie[] }>('/trending/movie/week');
-  return data.results;
+  return data?.results ?? [];
 }
 
 export async function getTrendingTV(): Promise<TVShow[]> {
   const data = await fetchTMDB<{ results: TVShow[] }>('/trending/tv/week');
-  return data.results;
+  return data?.results ?? [];
 }
 
 export async function getTopRatedMovies(): Promise<Movie[]> {
   const data = await fetchTMDB<{ results: Movie[] }>('/movie/top_rated');
-  return data.results;
+  return data?.results ?? [];
 }
 
 export async function getPopularTV(): Promise<TVShow[]> {
   const data = await fetchTMDB<{ results: TVShow[] }>('/tv/popular');
-  return data.results;
+  return data?.results ?? [];
 }
 
 export async function searchMulti(query: string): Promise<MediaItem[]> {
@@ -53,75 +68,77 @@ export async function searchMulti(query: string): Promise<MediaItem[]> {
     { query },
     0
   );
-  return data.results.filter(
+  return (data?.results ?? []).filter(
     (item) => item.media_type === 'movie' || item.media_type === 'tv'
   );
 }
 
-export async function getMovie(id: number): Promise<Movie> {
+export async function getMovie(id: number): Promise<Movie | null> {
   return fetchTMDB<Movie>(`/movie/${id}`);
 }
 
-export async function getMovieCredits(id: number): Promise<Credits> {
+export async function getMovieCredits(id: number): Promise<Credits | null> {
   return fetchTMDB<Credits>(`/movie/${id}/credits`);
 }
 
 export async function getSimilarMovies(id: number): Promise<Movie[]> {
   const data = await fetchTMDB<{ results: Movie[] }>(`/movie/${id}/similar`);
-  return data.results;
+  return data?.results ?? [];
 }
 
-export async function getTVShow(id: number): Promise<TVShow> {
+export async function getTVShow(id: number): Promise<TVShow | null> {
   return fetchTMDB<TVShow>(`/tv/${id}`);
 }
 
-export async function getTVCredits(id: number): Promise<Credits> {
+export async function getTVCredits(id: number): Promise<Credits | null> {
   return fetchTMDB<Credits>(`/tv/${id}/credits`);
 }
 
 export async function getTVSeason(
   id: number,
   seasonNumber: number
-): Promise<SeasonDetails> {
+): Promise<SeasonDetails | null> {
   return fetchTMDB<SeasonDetails>(`/tv/${id}/season/${seasonNumber}`);
 }
 
 export async function getSimilarTV(id: number): Promise<TVShow[]> {
   const data = await fetchTMDB<{ results: TVShow[] }>(`/tv/${id}/similar`);
-  return data.results;
+  return data?.results ?? [];
 }
 
 export async function getPopularMovies(): Promise<Movie[]> {
   const data = await fetchTMDB<{ results: Movie[] }>('/movie/popular');
-  return data.results;
+  return data?.results ?? [];
 }
 
 export async function getNowPlayingMovies(): Promise<Movie[]> {
   const data = await fetchTMDB<{ results: Movie[] }>('/movie/now_playing');
-  return data.results;
+  return data?.results ?? [];
 }
 
 export async function getUpcomingMovies(): Promise<Movie[]> {
   const data = await fetchTMDB<{ results: Movie[] }>('/movie/upcoming');
-  return data.results;
+  return data?.results ?? [];
 }
 
 export async function getTopRatedTV(): Promise<TVShow[]> {
   const data = await fetchTMDB<{ results: TVShow[] }>('/tv/top_rated');
-  return data.results;
+  return data?.results ?? [];
 }
 
 export async function getOnTheAirTV(): Promise<TVShow[]> {
   const data = await fetchTMDB<{ results: TVShow[] }>('/tv/on_the_air');
-  return data.results;
+  return data?.results ?? [];
 }
 
 export async function getMovieExternalIds(id: number): Promise<{ imdb_id: string | null }> {
-  return fetchTMDB<{ imdb_id: string | null }>(`/movie/${id}/external_ids`);
+  const data = await fetchTMDB<{ imdb_id: string | null }>(`/movie/${id}/external_ids`);
+  return data ?? { imdb_id: null };
 }
 
 export async function getTVExternalIds(id: number): Promise<{ imdb_id: string | null }> {
-  return fetchTMDB<{ imdb_id: string | null }>(`/tv/${id}/external_ids`);
+  const data = await fetchTMDB<{ imdb_id: string | null }>(`/tv/${id}/external_ids`);
+  return data ?? { imdb_id: null };
 }
 
 type TMDBVideo = {
@@ -155,13 +172,13 @@ function pickTrailer(videos: TMDBVideo[]): TMDBVideo | null {
 
 export async function getMovieTrailerKey(id: number): Promise<string | null> {
   const data = await fetchTMDB<{ results: TMDBVideo[] }>(`/movie/${id}/videos`, { language: 'en-US' }, 86400);
-  const best = pickTrailer(data.results ?? []);
+  const best = pickTrailer(data?.results ?? []);
   return best?.key ?? null;
 }
 
 export async function getTVTrailerKey(id: number): Promise<string | null> {
   const data = await fetchTMDB<{ results: TMDBVideo[] }>(`/tv/${id}/videos`, { language: 'en-US' }, 86400);
-  const best = pickTrailer(data.results ?? []);
+  const best = pickTrailer(data?.results ?? []);
   return best?.key ?? null;
 }
 
@@ -172,7 +189,7 @@ export async function getDiscoverMovies(genreIds: number[]): Promise<Movie[]> {
     sort_by: 'popularity.desc',
     'vote_count.gte': '100',
   });
-  return data.results;
+  return data?.results ?? [];
 }
 
 export async function getDiscoverTV(genreIds: number[]): Promise<TVShow[]> {
@@ -182,7 +199,7 @@ export async function getDiscoverTV(genreIds: number[]): Promise<TVShow[]> {
     sort_by: 'popularity.desc',
     'vote_count.gte': '100',
   });
-  return data.results;
+  return data?.results ?? [];
 }
 
 export function getImageUrl(path: string | null, size = 'w500'): string {
@@ -203,12 +220,12 @@ export function getPlayerUrl(
 
 export async function getMovieRecommendations(id: number): Promise<Movie[]> {
   const data = await fetchTMDB<{ results: Movie[] }>(`/movie/${id}/recommendations`);
-  return data.results;
+  return data?.results ?? [];
 }
 
 export async function getTVRecommendations(id: number): Promise<TVShow[]> {
   const data = await fetchTMDB<{ results: TVShow[] }>(`/tv/${id}/recommendations`);
-  return data.results;
+  return data?.results ?? [];
 }
 
 export async function getPopularAnime(): Promise<TVShow[]> {
@@ -218,7 +235,7 @@ export async function getPopularAnime(): Promise<TVShow[]> {
     sort_by: 'popularity.desc',
     'vote_count.gte': '100',
   });
-  return data.results;
+  return data?.results ?? [];
 }
 
 export async function getTopRatedAnime(): Promise<TVShow[]> {
@@ -228,7 +245,7 @@ export async function getTopRatedAnime(): Promise<TVShow[]> {
     sort_by: 'vote_average.desc',
     'vote_count.gte': '300',
   });
-  return data.results;
+  return data?.results ?? [];
 }
 
 export async function getNewAnime(): Promise<TVShow[]> {
@@ -240,7 +257,7 @@ export async function getNewAnime(): Promise<TVShow[]> {
     'vote_count.gte': '20',
     'first_air_date.lte': today,
   });
-  return data.results;
+  return data?.results ?? [];
 }
 
 export async function getGenreMovies(genreId: number): Promise<Movie[]> {
@@ -249,7 +266,7 @@ export async function getGenreMovies(genreId: number): Promise<Movie[]> {
     sort_by: 'popularity.desc',
     'vote_count.gte': '100',
   });
-  return data.results;
+  return data?.results ?? [];
 }
 
 export async function getGenreTV(genreId: number): Promise<TVShow[]> {
@@ -258,5 +275,5 @@ export async function getGenreTV(genreId: number): Promise<TVShow[]> {
     sort_by: 'popularity.desc',
     'vote_count.gte': '100',
   });
-  return data.results;
+  return data?.results ?? [];
 }

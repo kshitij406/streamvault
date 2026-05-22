@@ -15,7 +15,8 @@ export async function generateMetadata({ params }: Props) {
       getTVShow(Number(params.id)),
       getTVSeason(Number(params.id), Number(params.season)),
     ]);
-    const ep = seasonData.episodes?.find(
+    if (!show) return { title: 'Watch — StreamVault' };
+    const ep = seasonData?.episodes?.find(
       (e) => e.episode_number === Number(params.episode)
     );
     return {

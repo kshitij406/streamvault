@@ -25,6 +25,7 @@ interface Props {
 export async function generateMetadata({ params }: Props) {
   try {
     const movie = await getMovie(Number(params.id));
+    if (!movie) return { title: 'Movie — StreamVault' };
     return { title: `${movie.title} — StreamVault` };
   } catch {
     return { title: 'Movie — StreamVault' };
@@ -37,7 +38,7 @@ export default async function MoviePage({ params }: Props) {
 
   const [movie, credits, similar, externalIds] = await Promise.all([
     getMovie(id).catch(() => null),
-    getMovieCredits(id).catch(() => ({ cast: [], crew: [] })),
+    getMovieCredits(id).then(c => c ?? { cast: [], crew: [] }).catch(() => ({ cast: [], crew: [] })),
     getSimilarMovies(id).catch(() => []),
     getMovieExternalIds(id).catch(() => ({ imdb_id: null })),
   ]);

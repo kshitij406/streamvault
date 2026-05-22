@@ -27,6 +27,7 @@ interface Props {
 export async function generateMetadata({ params }: Props) {
   try {
     const show = await getTVShow(Number(params.id));
+    if (!show) return { title: 'TV Show — StreamVault' };
     return { title: `${show.name} — StreamVault` };
   } catch {
     return { title: 'TV Show — StreamVault' };
@@ -39,7 +40,7 @@ export default async function TVPage({ params }: Props) {
 
   const [show, credits, similar, externalIds] = await Promise.all([
     getTVShow(id).catch(() => null),
-    getTVCredits(id).catch(() => ({ cast: [], crew: [] })),
+    getTVCredits(id).then(c => c ?? { cast: [], crew: [] }).catch(() => ({ cast: [], crew: [] })),
     getSimilarTV(id).catch(() => []),
     getTVExternalIds(id).catch(() => ({ imdb_id: null })),
   ]);
